@@ -237,7 +237,7 @@ use_setuptools()
 from setuptools import setup
 
 
-VERSION = "0.9.1"
+VERSION = "0.9.2"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging
@@ -259,7 +259,7 @@ setup(name='ConcurrentLogHandler',
       author_email="lowell87@gmail.com",
       py_modules=[
         "cloghandler",
-        "portalocker",
+        "portalocker_clh",
         ],
       package_dir={ '' : 'src', },
       data_files=[
