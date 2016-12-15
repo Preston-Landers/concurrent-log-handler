@@ -142,7 +142,10 @@ Change Log
 .. _Python Bug #15960: http://bugs.python.org/issue15960
 .. _LP Bug 1199332: https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1199332
 .. _LP Bug 1199333: https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1199333
+.. _LP Bug 1265150: https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
 
+- 0.9.2: (fork): Fixes the deadlocking problem on Windows `LP Bug 1265150`_
+   * https://github.com/Preston-Landers/ConcurrentLogHandler
 
 - 0.9.1:  Bug fixes - `LP Bug 1199332`_ and `LP Bug 1199333`_.
    * More gracefully handle out of disk space scenarios. Prevent release() from

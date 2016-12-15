@@ -1,3 +1,14 @@
+NOTE: this is a fork which fixes a hanging/deadlocking problem on Windows. See this:
+
+https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
+
+The version number of this fork is incremented to 0.9.2
+
+The portalocker module this delivers was renamed portalocker_clh to resolve a naming conflict
+
+Original README follows.
+
+===
 
 You can install this module by issuing the following command:
 
