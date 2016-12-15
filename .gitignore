@@ -1,0 +1,8 @@
+*.pyc
+build
+dist
+test
+setuptools-*.tar.gz
+setuptools-*.egg
+src/ConcurrentLogHandler.egg-info
+__pycache__
