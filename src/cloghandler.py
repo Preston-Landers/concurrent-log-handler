@@ -54,6 +54,7 @@ __all__ = [
 
 import os
 import sys
+import traceback
 from random import randint
 from logging import Handler, LogRecord
 from logging.handlers import BaseRotatingHandler
@@ -138,6 +139,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.maxBytes = maxBytes
         self.backupCount = backupCount
 
+        self.stream_lock = None
+
         # How many times have we recursively locked ourselves?
         # https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
         self._stream_lock_count = 0
@@ -154,9 +157,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         else:
             lock_file = self.baseFilename
         lock_file += ".lock"
-        # lock_file = "__" + lock_file
         lock_path, lock_name = os.path.split(lock_file)
-        lock_name = "__" + lock_name
+        # hide the file on Unix and generally from file completion
+        lock_name = ".__" + lock_name
         lock_file = os.path.join(lock_path, lock_name)
         self.stream_lock = open(lock_file, "wb")
 
@@ -187,36 +190,45 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             finally:
                 self.stream = None
 
+    def _console_log(self, msg):
+        stack = "".join(traceback.format_stack())
+        print("%s:\n%s" % (msg, stack,))
+
     def acquire(self):
         """ Acquire thread and file locks.  Re-opening log for 'degraded' mode.
         """
+        # self._console_log("In acquire")
+
         # handle thread lock
         Handler.acquire(self)
         # Issue a file lock.  (This is inefficient for multiple active threads
         # within a single process. But if you're worried about high-performance,
         # you probably aren't using this log handler.)
         if self.stream_lock:
+            # If stream_lock=None, then assume close() was called or something
+            # else weird and ignore all file-level locks.
+            if self.stream_lock.closed:
+                # Daemonization can close all open file descriptors, see
+                # https://bugzilla.redhat.com/show_bug.cgi?id=952929
+                # Try opening the lock file again.  Should we warn() here?!?
+                try:
+                    self._open_lockfile()
+                except Exception:
+                    self.handleError(NullLogRecord())
+                    # Don't try to open the stream lock again
+                    self.stream_lock = None
+                    self._stream_lock_count = 0
+                    return
+
             self._stream_lock_count += 1
             if self._stream_lock_count == 1:
-                # If stream_lock=None, then assume close() was called or something
-                # else weird and ignore all file-level locks.
-                if self.stream_lock.closed:
-                    # Daemonization can close all open file descriptors, see
-                    # https://bugzilla.redhat.com/show_bug.cgi?id=952929
-                    # Try opening the lock file again.  Should we warn() here?!?
-                    try:
-                        self._open_lockfile()
-                    except Exception:
-                        self.handleError(NullLogRecord())
-                        # Don't try to open the stream lock again
-                        self.stream_lock = None
-                        return
                 lock(self.stream_lock, LOCK_EX)
                 # Stream will be opened as part by FileHandler.emit()
 
     def release(self):
         """ Release file and thread locks. If in 'degraded' mode, close the
         stream to reduce contention until the log files can be rotated. """
+        # self._console_log("In release")
         try:
             if self._rotateFailed:
                 self._close()
@@ -228,14 +240,14 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     self._stream_lock_count -= 1
                     if self._stream_lock_count < 0:
                         self._stream_lock_count = 0
-                    if self._stream_lock_count == 0:
+                    if self._stream_lock_count == 0 \
+                            and not self.stream_lock.closed:
                         unlock(self.stream_lock)
             except Exception:
                 self.handleError(NullLogRecord())
             finally:
                 # release thread lock
                 Handler.release(self)
-                # should also release _has_stream_lock here or no?
 
     def close(self):
         """
@@ -244,10 +256,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._close()
             if not self.stream_lock.closed:
                 self.stream_lock.close()
-                self._stream_lock_count = 0
-
         finally:
             self.stream_lock = None
+            self._stream_lock_count = 0
             Handler.close(self)
 
     def _degrade(self, degrade, msg, *args):
@@ -297,7 +308,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                                     "exception=%s", exc_value)
                 return
 
-            # Q: Is there some way to protect this code from a KeyboardInterupt?
+            # Q: Is there some way to protect this code from a KeyboardInterrupt?
             # This isn't necessarily a data loss issue, but it certainly does 
             # break the rotation process during stress testing.
 
