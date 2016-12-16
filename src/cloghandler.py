@@ -149,6 +149,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # For debug mode, swap out the "_degrade()" method with a more a verbose one.
         if debug:
             self._degrade = self._degrade_debug
+        # self._console_log("ConcurrentLogHandler init %s" % (hash(self)), stack=False)
 
     def _open_lockfile(self):
         # Use 'file.lock' and not 'file.log.lock' (Only handles the normal "*.log" case.)
@@ -161,7 +162,24 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # hide the file on Unix and generally from file completion
         lock_name = ".__" + lock_name
         lock_file = os.path.join(lock_path, lock_name)
-        self.stream_lock = open(lock_file, "wb")
+        # self._console_log("ConcurrentLogHandler %s opening %s" % (hash(self), lock_file), stack=False)
+        self.stream_lock = open(lock_file, "wb", buffering=0)
+        # self._stream_lock_count = 0
+        self._do_file_unlock()
+
+    def _do_file_unlock(self):
+        # self._console_log("in _do_file_unlock for %s" % (self.stream_lock,), stack=False)
+        self._stream_lock_count = 0
+        if self.stream_lock is None:
+            return
+        try:
+            unlock(self.stream_lock)
+            # self._console_log(">release complete lock for %s" % (self.stream_lock,), stack=False)
+        except (OSError, ValueError, LockException) as e:
+            # May be closed already but that's ok
+            # self._console_log(e, stack=True)
+            pass
+
 
     def _open(self, mode=None):
         """
@@ -190,14 +208,19 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             finally:
                 self.stream = None
 
-    def _console_log(self, msg):
-        stack = "".join(traceback.format_stack())
-        print("%s:\n%s" % (msg, stack,))
+    def _console_log(self, msg, stack=False):
+        import threading
+        tid = threading.current_thread().name
+        pid = os.getpid()
+        stack_str = ''
+        if stack:
+            stack_str = ":\n" + "".join(traceback.format_stack())
+        print("[%s %s %s] %s%s" % (tid, pid, hash(self), msg, stack_str,))
 
     def acquire(self):
         """ Acquire thread and file locks.  Re-opening log for 'degraded' mode.
         """
-        # self._console_log("In acquire")
+        # self._console_log("In acquire", stack=True)
 
         # handle thread lock
         Handler.acquire(self)
@@ -211,6 +234,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 # Daemonization can close all open file descriptors, see
                 # https://bugzilla.redhat.com/show_bug.cgi?id=952929
                 # Try opening the lock file again.  Should we warn() here?!?
+                # self._console_log("Lock was closed", stack=True)
                 try:
                     self._open_lockfile()
                 except Exception:
@@ -222,13 +246,15 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
             self._stream_lock_count += 1
             if self._stream_lock_count == 1:
+                # self._console_log(">Getting lock for %s" % (self.stream_lock,), stack=True)
                 lock(self.stream_lock, LOCK_EX)
+                # self._console_log("Got lock", stack=False)
                 # Stream will be opened as part by FileHandler.emit()
 
     def release(self):
         """ Release file and thread locks. If in 'degraded' mode, close the
         stream to reduce contention until the log files can be rotated. """
-        # self._console_log("In release")
+        # self._console_log("In release", stack=True)
         try:
             if self._rotateFailed:
                 self._close()
@@ -240,9 +266,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     self._stream_lock_count -= 1
                     if self._stream_lock_count < 0:
                         self._stream_lock_count = 0
-                    if self._stream_lock_count == 0 \
-                            and not self.stream_lock.closed:
-                        unlock(self.stream_lock)
+                    if self._stream_lock_count == 0:
+                        self._do_file_unlock()
+                        # self._console_log("#completed release", stack=False)
             except Exception:
                 self.handleError(NullLogRecord())
             finally:
@@ -252,13 +278,14 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     def close(self):
         """
         Close log stream and stream_lock. """
+        # self._console_log("In close()", stack=True)
         try:
             self._close()
             if not self.stream_lock.closed:
                 self.stream_lock.close()
         finally:
+            self._do_file_unlock()
             self.stream_lock = None
-            self._stream_lock_count = 0
             Handler.close(self)
 
     def _degrade(self, degrade, msg, *args):

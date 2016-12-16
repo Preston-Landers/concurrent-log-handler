@@ -117,7 +117,7 @@ if os.name == 'nt':
 elif os.name == 'posix':
     def lock(file, flags):
         try:
-            fcntl.flock(file.fileno(), flags)
+            fcntl.flock(file, flags)
         except IOError as exc_value:
             # The exception code varies on different systems so we'll catch
             # every IO error
@@ -132,11 +132,12 @@ if __name__ == '__main__':
     import sys
     import portalocker
 
-    log = open('log.txt', "a+")
+    # log = open('log.txt', "ab+")
+    log = open('log.txt', "wb")
     portalocker.lock(log, portalocker.LOCK_EX)
 
     timestamp = strftime("%m/%d/%Y %H:%M:%S\n", localtime(time()))
-    log.write(timestamp)
+    log.write(timestamp.encode('utf-8'))
 
     print("Wrote lines. Hit enter to release lock.")
     dummy = sys.stdin.readline()
