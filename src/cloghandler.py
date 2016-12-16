@@ -281,7 +281,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # self._console_log("In close()", stack=True)
         try:
             self._close()
-            if not self.stream_lock.closed:
+            if self.stream_lock and not self.stream_lock.closed:
                 self.stream_lock.close()
         finally:
             self._do_file_unlock()
