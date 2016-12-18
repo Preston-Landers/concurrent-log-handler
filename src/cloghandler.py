@@ -120,7 +120,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         the other processes need to close the file first.  A mechanism, called
         "degraded" mode, has been created for this scenario.  In degraded mode,
         the log file is closed after each log message is written.  So once all
-        processes have entered degraded mode, the net rotation attempt should
+        processes have entered degraded mode, the next rotation attempt should
         be successful and then normal logging can be resumed.  Using the 'delay'
         parameter may help reduce contention in some usage patterns.
 
@@ -146,10 +146,13 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._stream_lock_count = 0
 
         self._open_lockfile()
+
+        self._debug = debug
+
         # For debug mode, swap out the "_degrade()" method with a more a verbose one.
         if debug:
             self._degrade = self._degrade_debug
-        # self._console_log("ConcurrentLogHandler init %s" % (hash(self)), stack=False)
+            # self._console_log("ConcurrentLogHandler init %s" % (hash(self)), stack=False)
 
     def _open_lockfile(self):
         # Use 'file.lock' and not 'file.log.lock' (Only handles the normal "*.log" case.)
@@ -173,13 +176,13 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         if self.stream_lock is None:
             return
         try:
+            self._close()
             unlock(self.stream_lock)
             # self._console_log(">release complete lock for %s" % (self.stream_lock,), stack=False)
         except (OSError, ValueError, LockException) as e:
             # May be closed already but that's ok
             # self._console_log(e, stack=True)
             pass
-
 
     def _open(self, mode=None):
         """
@@ -209,6 +212,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self.stream = None
 
     def _console_log(self, msg, stack=False):
+        if not self._debug:
+            return
         import threading
         tid = threading.current_thread().name
         pid = os.getpid()
@@ -247,6 +252,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._stream_lock_count += 1
             if self._stream_lock_count == 1:
                 # self._console_log(">Getting lock for %s" % (self.stream_lock,), stack=True)
+
+                self.stream = self._open()
                 lock(self.stream_lock, LOCK_EX)
                 # self._console_log("Got lock", stack=False)
                 # Stream will be opened as part by FileHandler.emit()
@@ -304,6 +311,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self._rotateFailed = True
         else:
             if self._rotateFailed:
+                # self._console_log("Exiting degrade")
                 sys.stderr.write("Degrade mode - EXITING  - (pid=%d)   %s\n" %
                                  (os.getpid(), msg % args))
                 self._rotateFailed = False
@@ -331,6 +339,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 os.rename(self.baseFilename, tmpname)
             except (IOError, OSError):
                 exc_value = sys.exc_info()[1]
+                # self._console_log("rename failed.  File in use?  "
+                #                   "exception=%s" % (exc_value,))
                 self._degrade(True, "rename failed.  File in use?  "
                                     "exception=%s", exc_value)
                 return
@@ -357,6 +367,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 os.remove(dfn)
             os.rename(tmpname, dfn)
             # print "%s -> %s" % (self.baseFilename, dfn)
+            # self._console_log("Rotation completed")
             self._degrade(False, "Rotation completed")
         finally:
             # Re-open the output stream, but if "delay" is enabled then wait
