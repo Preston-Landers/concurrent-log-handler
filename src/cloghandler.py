@@ -55,7 +55,7 @@ __all__ = [
 import os
 import sys
 import traceback
-from random import randint
+import random
 from logging import Handler, LogRecord
 from logging.handlers import BaseRotatingHandler
 
@@ -322,7 +322,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             # Attempt to rename logfile to tempname:  There is a slight race-condition here, but it seems unavoidable
             tmpname = None
             while not tmpname or os.path.exists(tmpname):
-                tmpname = "%s.rotate.%08d" % (self.baseFilename, randint(0, 99999999))
+                tmpname = "%s.rotate.%08d" % (self.baseFilename, random.SystemRandom().getrandbits(64))
             try:
                 # Do a rename test to determine if we can successfully rename the log file
                 os.rename(self.baseFilename, tmpname)

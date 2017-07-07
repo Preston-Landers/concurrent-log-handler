@@ -76,7 +76,7 @@ class RotateLogStressTester:
 
     def run(self):
         c = 0
-        from random import choice, randint
+        import random
         # Use a bunch of random quotes, numbers, and severity levels to mix it up a bit!
         msgs = ["I found %d puppies", "There are %d cats in your hatz",
                 "my favorite number is %d", "I am %d years old.", "1 + 1 = %d",
@@ -87,9 +87,9 @@ class RotateLogStressTester:
         self.log.info("Starting to write random log message.   Loop=%d", self.writeLoops)
         while c <= self.writeLoops:
             c += 1
-            msg = choice(msgs)
-            logfunc = choice(logfuncts)
-            logfunc(msg, randint(0, 99999999))
+            msg = random.choice(msgs)
+            logfunc = random.choice(logfuncts)
+            logfunc(msg, random.SystemRandom().getrandbits(64))
 
             if self.random_sleep_mode and c % 1000 == 0:
                 # Sleep from 0-15 seconds
