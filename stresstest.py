@@ -93,7 +93,7 @@ class RotateLogStressTester:
 
             if self.random_sleep_mode and c % 1000 == 0:
                 # Sleep from 0-15 seconds
-                s = randint(1, 15)
+                s = random.SystemRandom().getrandbits(64)
                 print("PID %d sleeping for %d seconds" % (os.getpid(), s))
                 sleep(s)
             # break
