@@ -9,6 +9,7 @@
 #   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 #   License for the specific language governing permissions and limitations
 #   under the License.
+
 """ cloghandler.py:  A smart replacement for the standard RotatingFileHandler
 
 ConcurrentRotatingFileHandler:  This class is a log handler which is a drop-in
@@ -45,17 +46,10 @@ This module supports Python 2.6 and later.
 
 """
 
-__version__ = '0.9.2'
-__revision__ = 'lowell87@gmail.com-20130711022321-doutxl7zyzuwss5a 2013-07-10 22:23:21 -0400 [0]'
-__author__ = "Lowell Alleman"
-__all__ = [
-    "ConcurrentRotatingFileHandler",
-]
-
 import os
+import random
 import sys
 import traceback
-import random
 from logging import Handler, LogRecord
 from logging.handlers import BaseRotatingHandler
 
@@ -63,6 +57,18 @@ try:
     import codecs
 except ImportError:
     codecs = None
+
+try:
+    import secrets
+except ImportError:
+    secrets = None
+
+__version__ = '0.9.2'
+__author__ = "Preston Landers <planders@gmail.com>"
+# __author__ = "Lowell Alleman"
+__all__ = [
+    "ConcurrentRotatingFileHandler",
+]
 
 # Question/TODO: Should we have a fallback mode if we can't load portalocker /
 # we should still be better off than with the standard RotattingFileHandler
@@ -72,6 +78,15 @@ except ImportError:
 # sibling module than handles all the ugly platform-specific details of file locking
 from portalocker_clh import lock, unlock, LOCK_EX, LOCK_NB, LockException
 
+
+def get_random_bits(num_bits=64):
+    """Get a random number, using secrets module if available (Python 3.6), otherwise
+    use random.SystemRandom()."""
+    if secrets is not None and hasattr(secrets, "randbits"):
+        rand_bits = secrets.randbits(num_bits)
+    else:
+        rand_bits = random.SystemRandom().getrandbits(num_bits)
+    return rand_bits
 
 
 # Workaround for handleError() in Python 2.7+ where record is written to stderr
@@ -133,6 +148,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         expected. The same is true if this class is used by one application, but
         the RotatingFileHandler is used by another.
         """
+        self.stream = None
         # Absolute file name handling done by FileHandler since Python 2.5  
         BaseRotatingHandler.__init__(self, filename, mode, encoding, delay)
         self.delay = delay
@@ -322,7 +338,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             # Attempt to rename logfile to tempname:  There is a slight race-condition here, but it seems unavoidable
             tmpname = None
             while not tmpname or os.path.exists(tmpname):
-                tmpname = "%s.rotate.%08d" % (self.baseFilename, random.SystemRandom().getrandbits(64))
+                tmpname = "%s.rotate.%08d" % (self.baseFilename, get_random_bits(64))
             try:
                 # Do a rename test to determine if we can successfully rename the log file
                 os.rename(self.baseFilename, tmpname)
