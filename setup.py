@@ -284,7 +284,7 @@ setup(name='concurrent-log-handler',
       data_files=[
           ('tests', ["stresstest.py"]),
           ('docs', [
-              'README',
+              'README.md',
               'LICENSE',
           ]),
       ],
