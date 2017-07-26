@@ -16,16 +16,16 @@ Summary of other changes:
 * More secure generation of random numbers for temporary filenames
 * Change the name of the lockfile to have .__ in front of it.
 
- ## Instructions ##
+## Instructions ##
 
 You can install this module by issuing the following command:
 
     python setup.py install
 
-To build a Python "egg", use the following:
+To build a Python "wheel", use the following:
 
-    python setup.py bdist_egg
-    # Copy the .egg file from under the "dist" folder
+    python setup.py bdist_wheel
+    # Copy the .whl file from under the "dist" folder
 
 
 
@@ -68,3 +68,19 @@ support to the stresstest.py script and send me the patch.
 Update (Preston): this works fine in a multi-process concurrency environment but I have 
 not tested it extensively with threads or async, but those locks should be handled by the 
 parent `logging` class. 
+
+
+## Change Log ##
+
+- 0.9.3: Refactoring release
+   * For publishing fork on pypi as `concurrent-log-handler` under new package name.
+   * NOTE: PyWin32 is required on Windows but is not an explicit dependency because 
+           the PyWin32 package is not currently installable through pip.
+   * Fix lock behavior / race condition
+
+- 0.9.2: Initial release of fork by Preston Landers based on a fork of Lowell Alleman's 
+  ConcurrentLogHandler 0.9.1
+   * Fixes deadlocking issue with recent versions of Python
+   * Puts `.__` prefix in front of lock file name
+   * Use `secrets` or `SystemRandom` if available.
+   * Add/fix Windows support

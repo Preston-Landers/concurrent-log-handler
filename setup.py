@@ -146,7 +146,9 @@ Change Log
 
 - 0.9.3: Refactoring release
    * For publishing fork on pypi as `concurrent-log-handler` under new package name.
-   * Add Windows dependency on PyWin32
+   * NOTE: PyWin32 is required on Windows but is not an explicit dependency because
+           the PyWin32 package is not currently installable through pip.
+   * Fix lock behavior / race condition
 
 - 0.9.2: Initial release of fork by Preston Landers.
    * Fixes deadlocking issue with recent versions of Python
