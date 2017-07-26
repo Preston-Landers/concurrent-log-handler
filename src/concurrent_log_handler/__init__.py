@@ -256,8 +256,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         if self._stream_lock_count == 1:
             self._console_log(">Getting lock for %s" % (self.stream_lock,), stack=True)
 
-            self.stream = self._open()
             lock(self.stream_lock, LOCK_EX)
+            self.stream = self._open()
             # self._console_log("Got lock", stack=False)
             # Stream will be opened as part by FileHandler.emit()
 

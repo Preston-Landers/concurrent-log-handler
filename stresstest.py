@@ -36,7 +36,7 @@ class RotateLogStressTester:
         self.rotateSize = 128 * 1024
         self.rotateCount = ROTATE_COUNT
         self.random_sleep_mode = False
-        self.debug = False
+        self.debug = True
         self.logger_delay = logger_delay
         self.log = None
 
@@ -46,6 +46,7 @@ class RotateLogStressTester:
         return ConcurrentRotatingFileHandler(
             fn, 'a', self.rotateSize,
             self.rotateCount, delay=self.logger_delay,
+            encoding='utf-8',
             debug=self.debug)
         # To run the test with the standard library's RotatingFileHandler:
         # from logging.handlers import RotatingFileHandler
@@ -100,7 +101,7 @@ class RotateLogStressTester:
                 print("PID %d sleeping for %d seconds" % (os.getpid(), s))
                 sleep(s)
                 # break
-        self.log.info("Done witting random log messages.")
+        self.log.info("Done writing random log messages.")
 
 
 def iter_lognames(logfile, count):
@@ -204,7 +205,12 @@ class TestManager:
 
     def checkExitCodes(self):
         for cp in self.tests:
-            if cp.popen.poll() != 0:
+            stdout_str, stderr_str = cp.popen.communicate()
+            exit_code = cp.popen.poll()
+            if exit_code != 0:
+                print(stderr_str)
+                print(stderr_str)
+                print("cp exit code: %s: %s" % (cp, exit_code))
                 return False
         return True
 

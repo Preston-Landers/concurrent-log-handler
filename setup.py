@@ -239,8 +239,9 @@ To-do
   threaded situation. If this is important to you, you could always add
   threading support to the ``stresstest.py`` script and send me the patch.
 
-* Update: this works fine in a multi-process concurrency environment but I have
-  not tested it extensively with threads or async.
+* Update: this works in a multi-process concurrency environment but I have
+  not tested it extensively with threads or async, but that should be handled
+  by the parent logging class.
 """
 
 import sys

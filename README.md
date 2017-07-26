@@ -1,3 +1,5 @@
+## concurrent-log-handler ##
+
 This is a fork of Lowell Alleman's ConcurrentLogHandler 0.9.1 which fixes
 a hanging/deadlocking problem. See this:
 
@@ -14,7 +16,7 @@ Summary of other changes:
 * More secure generation of random numbers for temporary filenames
 * Change the name of the lockfile to have .__ in front of it.
 
-===
+ ## Instructions ##
 
 You can install this module by issuing the following command:
 
@@ -63,5 +65,6 @@ no reason why this should be an issue, but no stress-testing has been done in a
 threaded situation. If this is important to you, you could always add threading
 support to the stresstest.py script and send me the patch.
 
-Update: this works fine in a multi-process concurrency environment but I have not
-tested it extensively with threads or async.
+Update (Preston): this works fine in a multi-process concurrency environment but I have 
+not tested it extensively with threads or async, but those locks should be handled by the 
+parent `logging` class. 
