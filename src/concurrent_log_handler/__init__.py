@@ -10,7 +10,7 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-""" cloghandler.py:  A smart replacement for the standard RotatingFileHandler
+""" concurrent_log_handler: A smart replacement for the standard RotatingFileHandler
 
 ConcurrentRotatingFileHandler:  This class is a log handler which is a drop-in
 replacement for the python standard log handler 'RotateFileHandler', the primary
@@ -52,6 +52,7 @@ import sys
 import traceback
 from logging import Handler, LogRecord
 from logging.handlers import BaseRotatingHandler
+from concurrent_log_handler.portalocker import lock, unlock, LOCK_EX, LOCK_NB, LockException
 
 try:
     import codecs
@@ -59,24 +60,17 @@ except ImportError:
     codecs = None
 
 try:
+    # noinspection PyPackageRequirements
     import secrets
 except ImportError:
     secrets = None
 
-__version__ = '0.9.2'
+__version__ = '0.9.3'
 __author__ = "Preston Landers <planders@gmail.com>"
 # __author__ = "Lowell Alleman"
 __all__ = [
     "ConcurrentRotatingFileHandler",
 ]
-
-# Question/TODO: Should we have a fallback mode if we can't load portalocker /
-# we should still be better off than with the standard RotattingFileHandler
-# class, right? We do some rename checking... that should prevent some file
-# clobbering that the builtin class allows.
-
-# sibling module than handles all the ugly platform-specific details of file locking
-from portalocker_clh import lock, unlock, LOCK_EX, LOCK_NB, LockException
 
 
 def get_random_bits(num_bits=64):
@@ -166,7 +160,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # For debug mode, swap out the "_degrade()" method with a more a verbose one.
         if debug:
             self._degrade = self._degrade_debug
-            # self._console_log("ConcurrentLogHandler init %s" % (hash(self)), stack=False)
+            # self._console_log("concurrent-log-handler init %s" % (hash(self)), stack=False)
 
     def _open_lockfile(self):
         if self.stream_lock and not self.stream_lock.closed:
@@ -182,7 +176,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # hide the file on Unix and generally from file completion
         lock_name = ".__" + lock_name
         lock_file = os.path.join(lock_path, lock_name)
-        self._console_log("ConcurrentLogHandler %s opening %s" % (hash(self), lock_file), stack=False)
+        self._console_log(
+            "concurrent-log-handler %s opening %s" % (hash(self), lock_file), stack=False)
         self.stream_lock = open(lock_file, "wb", buffering=0)
 
     def _do_file_unlock(self):
@@ -194,7 +189,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self.stream_lock.close()
                 self.stream_lock = None
             self._close()
-            self._console_log(">release complete lock for %s" % (self.stream_lock,), stack=False)
+            self._console_log(
+                ">release complete lock for %s" % (self.stream_lock,), stack=False)
         except (OSError, ValueError, LockException) as e:
             # May be closed already but that's ok
             self._console_log(e, stack=True)
@@ -246,6 +242,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # handle thread lock
         Handler.acquire(self)
 
+        # noinspection PyBroadException
         try:
             self._open_lockfile()
         except Exception:
@@ -264,6 +261,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             # self._console_log("Got lock", stack=False)
             # Stream will be opened as part by FileHandler.emit()
 
+    # noinspection PyBroadException
     def release(self):
         """ Release file and thread locks. If in 'degraded' mode, close the
         stream to reduce contention until the log files can be rotated. """
@@ -282,7 +280,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     self._do_file_unlock()
                     self._console_log("#completed release", stack=False)
                 elif self._stream_lock_count:
-                    self._console_log("#inner release (%s)" % (self._stream_lock_count,), stack=True)
+                    self._console_log(
+                        "#inner release (%s)" % (self._stream_lock_count,), stack=True)
             except Exception:
                 self.handleError(NullLogRecord())
             finally:
@@ -335,7 +334,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             # Determine if we can rename the log file or not. Windows refuses to
             # rename an open file, Unix is inode base so it doesn't care.
 
-            # Attempt to rename logfile to tempname:  There is a slight race-condition here, but it seems unavoidable
+            # Attempt to rename logfile to tempname:
+            # There is a slight race-condition here, but it seems unavoidable
             tmpname = None
             while not tmpname or os.path.exists(tmpname):
                 tmpname = "%s.rotate.%08d" % (self.baseFilename, get_random_bits(64))
@@ -344,10 +344,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 os.rename(self.baseFilename, tmpname)
             except (IOError, OSError):
                 exc_value = sys.exc_info()[1]
-                self._console_log("rename failed.  File in use?  "
-                                  "exception=%s" % (exc_value,))
-                self._degrade(True, "rename failed.  File in use?  "
-                                    "exception=%s", exc_value)
+                self._console_log(
+                    "rename failed.  File in use? exception=%s" % (exc_value,))
+                self._degrade(
+                    True,  "rename failed.  File in use? exception=%s", exc_value)
                 return
 
             # Q: Is there some way to protect this code from a KeyboardInterrupt?

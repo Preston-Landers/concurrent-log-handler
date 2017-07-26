@@ -4,6 +4,8 @@ dist
 test
 setuptools-*.tar.gz
 setuptools-*.egg
-src/ConcurrentLogHandler.egg-info
+src/concurrent_log_handler.egg-info
 __pycache__
 .idea
+env
+venv

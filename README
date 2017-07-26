@@ -1,15 +1,18 @@
-NOTE: this is a fork which fixes a hanging/deadlocking problem on Windows. See this:
+This is a fork of Lowell Alleman's ConcurrentLogHandler 0.9.1 which fixes
+a hanging/deadlocking problem. See this:
 
 https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
 
-The version number of this fork is incremented to 0.9.2
+Summary of other changes:
 
-The portalocker module this delivers was renamed portalocker_clh to resolve a naming conflict.
-
-It also changes the name of the lockfile to have .__ in front of it. For instance, if your
-logfile is myapp.log, the lockfile will be named .__myapp.lock
-
-Original README follows.
+* Renamed package to `concurrent_log_handler`
+* portalocker is inside the package, not a separate module.
+* Support for Windows
+  * Note: PyWin32 is required on Windows, but can't be installed as an
+    automatic dependency because it's not currently installable through pip.
+* Fix for deadlocking problem with recent versions of Python
+* More secure generation of random numbers for temporary filenames
+* Change the name of the lockfile to have .__ in front of it.
 
 ===
 
@@ -19,7 +22,7 @@ You can install this module by issuing the following command:
 
 To build a Python "egg", use the following:
 
-    python seutp.py bdist_egg
+    python setup.py bdist_egg
     # Copy the .egg file from under the "dist" folder
 
 
@@ -27,7 +30,7 @@ To build a Python "egg", use the following:
 Here is a simple usage example:
 
     from logging import getLogger, INFO
-    from cloghandler import ConcurrentRotatingFileHandler
+    from concurrent_log_handler import ConcurrentRotatingFileHandler
     import os
     
     log = getLogger()
@@ -50,7 +53,7 @@ To use this module from a logging config file, use a handler entry like this:
     formatter=form01
     args=("rotating.log", "a", 512*1024, 5)
 
-Note: you must have a "import cloghandler" before you call fileConfig(). For
+Note: you must have a "import concurrent_log_handler" before you call fileConfig(). For
 more information see http://docs.python.org/lib/logging-config-fileformat.html
 
 
@@ -59,3 +62,6 @@ NOTES: This module has not yet be tested in a multi-threaded environment. I see
 no reason why this should be an issue, but no stress-testing has been done in a
 threaded situation. If this is important to you, you could always add threading
 support to the stresstest.py script and send me the patch.
+
+Update: this works fine in a multi-process concurrency environment but I have not
+tested it extensively with threads or async.

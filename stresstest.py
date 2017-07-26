@@ -12,18 +12,19 @@ multiple threads.
 
 """
 
+import os
+import sys
+from optparse import OptionParser
+from subprocess import Popen
+from time import sleep
+
+# local lib; for testing
+from concurrent_log_handler import ConcurrentRotatingFileHandler, get_random_bits
+
 __version__ = '$Id$'
 __author__ = 'Lowell Alleman'
 
-import os
-import sys
-from subprocess import call, Popen, STDOUT
-from time import sleep
-
 ROTATE_COUNT = 5000
-
-# local lib; for testing
-from cloghandler import ConcurrentRotatingFileHandler
 
 
 class RotateLogStressTester:
@@ -37,13 +38,15 @@ class RotateLogStressTester:
         self.random_sleep_mode = False
         self.debug = False
         self.logger_delay = logger_delay
+        self.log = None
 
     def getLogHandler(self, fn):
         """ Override this method if you want to test a different logging handler
         class. """
-        return ConcurrentRotatingFileHandler(fn, 'a', self.rotateSize,
-                                             self.rotateCount, delay=self.logger_delay,
-                                             debug=self.debug)
+        return ConcurrentRotatingFileHandler(
+            fn, 'a', self.rotateSize,
+            self.rotateCount, delay=self.logger_delay,
+            debug=self.debug)
         # To run the test with the standard library's RotatingFileHandler:
         # from logging.handlers import RotatingFileHandler
         # return RotatingFileHandler(fn, 'a', self.rotateSize, self.rotateCount)
@@ -89,14 +92,14 @@ class RotateLogStressTester:
             c += 1
             msg = random.choice(msgs)
             logfunc = random.choice(logfuncts)
-            logfunc(msg, random.SystemRandom().getrandbits(64))
+            logfunc(msg, get_random_bits(64))
 
             if self.random_sleep_mode and c % 1000 == 0:
                 # Sleep from 0-15 seconds
-                s = random.SystemRandom().getrandbits(64)
+                s = get_random_bits(64)
                 print("PID %d sleeping for %d seconds" % (os.getpid(), s))
                 sleep(s)
-            # break
+                # break
         self.log.info("Done witting random log messages.")
 
 
@@ -125,23 +128,26 @@ def combine_logs(combinedlog, iterable, mode="w"):
     fp.close()
 
 
-from optparse import OptionParser
-
-parser = OptionParser(usage="usage:  %prog",
-                      version=__version__,
-                      description="Stress test the cloghandler module.")
-parser.add_option("--log-calls", metavar="NUM",
-                  action="store", type="int", default=50000,
-                  help="Number of logging entries to write to each log file.  "
-                       "Default is %default")
-parser.add_option("--random-sleep-mode",
-                  action="store_true", default=False)
-parser.add_option("--debug",
-                  action="store_true", default=False)
-parser.add_option("--logger-delay",
-                  action="store_true", default=False,
-                  help="Enable the 'delay' mode in the logger class. "
-                       "This means that the log file will be opened on demand.")
+parser = OptionParser(
+    usage="usage:  %prog",
+    version=__version__,
+    description="Stress test the concurrent_log_handler module.")
+parser.add_option(
+    "--log-calls", metavar="NUM",
+    action="store", type="int", default=50000,
+    help="Number of logging entries to write to each log file.  "
+         "Default is %default")
+parser.add_option(
+    "--random-sleep-mode",
+    action="store_true", default=False)
+parser.add_option(
+    "--debug",
+    action="store_true", default=False)
+parser.add_option(
+    "--logger-delay",
+    action="store_true", default=False,
+    help="Enable the 'delay' mode in the logger class. "
+         "This means that the log file will be opened on demand.")
 
 
 def main_client(args):
@@ -212,16 +218,19 @@ def unified_diff(a, b, out=sys.stdout):
 
 
 def main_runner(args):
-    parser.add_option("--processes", metavar="NUM",
-                      action="store", type="int", default=3,
-                      help="Number of processes to spawn.  Default: %default")
-    parser.add_option("--delay", metavar="secs",
-                      action="store", type="float", default=2.5,
-                      help="Wait SECS before spawning next processes.  "
-                           "Default: %default")
-    parser.add_option("-p", "--path", metavar="DIR",
-                      action="store", default="test",
-                      help="Path to a temporary directory.  Default: '%default'")
+    parser.add_option(
+        "--processes", metavar="NUM",
+        action="store", type="int", default=3,
+        help="Number of processes to spawn.  Default: %default")
+    parser.add_option(
+        "--delay", metavar="secs",
+        action="store", type="float", default=2.5,
+        help="Wait SECS before spawning next processes.  "
+             "Default: %default")
+    parser.add_option(
+        "-p", "--path", metavar="DIR",
+        action="store", default="test",
+        help="Path to a temporary directory.  Default: '%default'")
 
     this_script = args[0]
     (options, args) = parser.parse_args(args)
@@ -276,8 +285,8 @@ def main_runner(args):
     combine_logs(shared_combo, sort_em(log_lines))
     print("done.")
 
-    print(
-        "Running internal diff:  (If the next line is 'end of diff', then the stress test passed!)")
+    print("Running internal diff:  "
+          "(If the next line is 'end of diff', then the stress test passed!)")
     unified_diff(client_combo, shared_combo)
     print("   --- end of diff ----")
 
