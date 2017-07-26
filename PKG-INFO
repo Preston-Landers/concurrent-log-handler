@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: concurrent-log-handler
-Version: 0.9.3
+Version: 0.9.4
 Summary:  Concurrent logging handler (drop-in replacement for RotatingFileHandler)
 Home-page: https://github.com/Preston-Landers/concurrent_log_handler
 Author: Preston Landers
@@ -143,6 +143,8 @@ Description:
         
         Change Log
         ==========
+
+        - 0.9.4: Fix setup.py / wheel to not install tests and docs to Python root.
 
         - 0.9.3: Refactoring release
            * For publishing fork on pypi as `concurrent-log-handler` under new package name.

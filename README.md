@@ -72,6 +72,8 @@ parent `logging` class.
 
 ## Change Log ##
 
+- 0.9.4: Fix setup.py to not include tests in distribution.
+
 - 0.9.3: Refactoring release
    * For publishing fork on pypi as `concurrent-log-handler` under new package name.
    * NOTE: PyWin32 is required on Windows but is not an explicit dependency because 

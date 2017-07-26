@@ -65,7 +65,7 @@ try:
 except ImportError:
     secrets = None
 
-__version__ = '0.9.3'
+__version__ = '0.9.4'
 __author__ = "Preston Landers <planders@gmail.com>"
 # __author__ = "Lowell Alleman"
 __all__ = [
