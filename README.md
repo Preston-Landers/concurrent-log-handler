@@ -24,7 +24,7 @@ Summary of other changes:
 * More secure generation of random numbers for temporary filenames
 * Change the name of the lockfile to have .__ in front of it.
 * Provide a QueueListener / QueueHandler implementation for 
-  handling log events in a background thread (optional) 
+  handling log events in a background thread. Optional: requires Python 3. 
 
 
 ## Instructions ##
@@ -74,7 +74,7 @@ more information see http://docs.python.org/lib/logging-config-fileformat.html
 
 To use the background logging queue, you must call this code at some point in your
 app where it sets up logging configuration. Please read the doc string in the
-file `concurrent_log_handler/queue.py` for more details.
+file `concurrent_log_handler/queue.py` for more details. This requires Python 3.
 
     from concurrent_log_handler.queue import setup_logging_queues
     

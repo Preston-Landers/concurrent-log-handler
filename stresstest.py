@@ -40,7 +40,7 @@ class RotateLogStressTester:
         self.debug = True
         self.logger_delay = logger_delay
         self.log = None
-        self.use_gzip = False
+        self.use_gzip = True
 
     def getLogHandler(self, fn):
         """ Override this method if you want to test a different logging handler
