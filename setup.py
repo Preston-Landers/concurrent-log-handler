@@ -145,6 +145,7 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
+- 0.9.6: Fix platform specifier for PyPi
 
 - 0.9.5: Add `use_gzip` option to compress rotated logs. Add an optional threaded
 logging queue handler based on the standard library's `logging.QueueHandler`.
@@ -265,7 +266,7 @@ use_setuptools()
 
 from setuptools import setup
 
-VERSION = "0.9.5"
+VERSION = "0.9.6"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging
