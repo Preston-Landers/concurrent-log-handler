@@ -1,7 +1,7 @@
 *.pyc
 build
 dist
-test
+test_output
 setuptools-*.tar.gz
 setuptools-*.egg
 src/concurrent_log_handler.egg-info

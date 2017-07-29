@@ -9,6 +9,7 @@ Summary of other changes:
 
 * Renamed package to `concurrent_log_handler`
 * portalocker is inside the package, not a separate module.
+* Provide `use_gzip` option to compress rotated logs
 * Support for Windows
   * Note: PyWin32 is required on Windows, but can't be installed as an
     automatic dependency because it's not currently installable through pip.
@@ -58,19 +59,18 @@ To use this module from a logging config file, use a handler entry like this:
 Note: you must have a "import concurrent_log_handler" before you call fileConfig(). For
 more information see http://docs.python.org/lib/logging-config-fileformat.html
 
+This module is designed to function well in a multi-threaded or multi-processes 
+concurrent environment. However, all writers to a given log file should be using
+the same class and the *same settings* at the same time, otherwise unexpected
+behavior may result during file rotation. 
 
-
-NOTES: This module has not yet be tested in a multi-threaded environment. I see
-no reason why this should be an issue, but no stress-testing has been done in a
-threaded situation. If this is important to you, you could always add threading
-support to the stresstest.py script and send me the patch.
-
-Update (Preston): this works fine in a multi-process concurrency environment but I have 
-not tested it extensively with threads or async, but those locks should be handled by the 
-parent `logging` class. 
+This may mean that if you change the logging settings at any point you may need to 
+restart your app service so that all processes are using the same settings at the same time.
 
 
 ## Change Log ##
+
+- 0.9.5: Add gzip_logs option to compress rotated logs.
 
 - 0.9.4: Fix setup.py to not include tests in distribution.
 

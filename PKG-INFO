@@ -1,7 +1,7 @@
 Metadata-Version: 1.1
 Name: concurrent-log-handler
 Version: 0.9.4
-Summary:  Concurrent logging handler (drop-in replacement for RotatingFileHandler)
+Summary:  RotatingFileHandler replacement with concurrency, gzip and Windows support
 Home-page: https://github.com/Preston-Landers/concurrent_log_handler
 Author: Preston Landers
 Author-email: planders@gmail.com
@@ -10,15 +10,18 @@ Description:
         Overview
         ========
         This module provides an additional log handler for Python's standard logging
-        package (PEP 282). This handler will write log events to log file which is 
+        package (PEP 282). This handler will write log events to log file which is
         rotated when the log file reaches a certain size.  Multiple processes can
-        safely write to the same log file concurrently.
+        safely write to the same log file concurrently. Rotated logs can be gzipped
+        if enabled.
 
         This is a fork from Lowell Alleman's version with updates for Windows and
         recent versions of Python. It should be a drop-in replacement for users
         of the old version, except for changing the package name from
         `cloghandler` to `concurrent_log_handler`.
-        Windows support requires PyWin32 installed.
+
+        Note: PyWin32 is required on Windows, but can't be installed as an
+        automatic dependency because it's not currently installable through pip.
         
         Details
         =======
@@ -179,7 +182,7 @@ Description:
            * For anyone still using Python 2.3-2.5, please use the latest 0.8.x release
         
         - 0.8.6:  Fixed packaging bug with test script
-           * Fix a small packaging bug from the 0.8.5 release.  (Thanks to Björn Häuser 
+           * Fix a small packaging bug from the 0.8.5 release.  (Thanks to Bj?rn H?user 
              for bringing this to my attention.)
            * Updated stresstest.py to always use the correct python version when
              launching sub-processes instead of the system's default "python".

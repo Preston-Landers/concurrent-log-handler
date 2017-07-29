@@ -12,6 +12,7 @@ multiple threads.
 
 """
 
+import gzip
 import os
 import sys
 from optparse import OptionParser
@@ -39,6 +40,7 @@ class RotateLogStressTester:
         self.debug = True
         self.logger_delay = logger_delay
         self.log = None
+        self.use_gzip = False
 
     def getLogHandler(self, fn):
         """ Override this method if you want to test a different logging handler
@@ -47,7 +49,7 @@ class RotateLogStressTester:
             fn, 'a', self.rotateSize,
             self.rotateCount, delay=self.logger_delay,
             encoding='utf-8',
-            debug=self.debug)
+            debug=self.debug, use_gzip=self.use_gzip)
         # To run the test with the standard library's RotatingFileHandler:
         # from logging.handlers import RotatingFileHandler
         # return RotatingFileHandler(fn, 'a', self.rotateSize, self.rotateCount)
@@ -114,11 +116,19 @@ def iter_lognames(logfile, count):
 def iter_logs(iterable, missing_ok=False):
     """ Generator to extract log entries from shared log file. """
     for fn in iterable:
-        if os.path.exists(fn):
-            for line in open(fn):
-                yield line
+        opener = open
+        log_path = fn
+        log_path_gz = log_path + ".gz"
+        if os.path.exists(log_path_gz):
+            log_path = log_path_gz
+            opener = gzip.open
+
+        if os.path.exists(log_path):
+            with opener(log_path, "r") as fh:
+                for line in fh:
+                    yield decode(line)
         elif not missing_ok:
-            raise ValueError("Missing log file %s" % fn)
+            raise ValueError("Missing log file %s" % log_path)
 
 
 def combine_logs(combinedlog, iterable, mode="w"):
@@ -235,7 +245,7 @@ def main_runner(args):
              "Default: %default")
     parser.add_option(
         "-p", "--path", metavar="DIR",
-        action="store", default="test",
+        action="store", default="test_output",
         help="Path to a temporary directory.  Default: '%default'")
 
     this_script = args[0]
@@ -295,6 +305,12 @@ def main_runner(args):
           "(If the next line is 'end of diff', then the stress test passed!)")
     unified_diff(client_combo, shared_combo)
     print("   --- end of diff ----")
+
+
+def decode(thing, encoding="utf-8"):
+    if isinstance(thing, bytes):
+        return thing.decode(encoding=encoding)
+    return thing
 
 
 if __name__ == '__main__':

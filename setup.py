@@ -4,14 +4,15 @@
 #
 #   python setup.py install
 #
-""" Concurrent logging handler (drop-in replacement for RotatingFileHandler)
+"""RotatingFileHandler replacement with concurrency, gzip and Windows support
 
 Overview
 ========
 This module provides an additional log handler for Python's standard logging
 package (PEP 282). This handler will write log events to log file which is
 rotated when the log file reaches a certain size.  Multiple processes can
-safely write to the same log file concurrently.
+safely write to the same log file concurrently. Rotated logs can be gzipped
+if enabled.
 
 This is a fork from Lowell Alleman's version with updates for Windows and
 recent versions of Python. It should be a drop-in replacement for users
@@ -303,3 +304,6 @@ setup(name='concurrent-log-handler',
       # test_suite=unittest.TestSuite,
       **extra
       )
+
+# Development build:
+# python setup.py clean build sdist bdist_wheel

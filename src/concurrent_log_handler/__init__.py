@@ -36,6 +36,12 @@ for each log message.) This can have potentially performance implications. In my
 testing, performance was more than adequate, but if you need a high-volume or
 low-latency solution, I suggest you look elsewhere.
 
+Warning: see notes in the README.md about changing rotation settings like maxBytes.
+If different processes are writing to the same file, they should all have the same
+settings at the same time, or unexpected behavior may result. This may mean that if you
+change the logging settings at any point you may need to restart your app service
+so that all processes are using the same settings at the same time.
+
 This module currently only support the 'nt' and 'posix' platforms due to the
 usage of the portalocker module.  I do not have access to any other platforms
 for testing, patches are welcome.
@@ -64,6 +70,12 @@ try:
     import secrets
 except ImportError:
     secrets = None
+
+try:
+    import gzip
+except ImportError:
+    gzip = None
+
 
 __version__ = '0.9.4'
 __author__ = "Preston Landers <planders@gmail.com>"
@@ -101,9 +113,18 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     """
 
     def __init__(self, filename, mode='a', maxBytes=0, backupCount=0,
-                 encoding=None, debug=False, delay=0):
+                 encoding=None, debug=False, delay=0, use_gzip=False):
         """
         Open the specified file and use it as the stream for logging.
+
+        :param filename: name of the log file to output to.
+        :param mode: write mode: defaults to 'a' for text append
+        :param maxBytes: rotate the file at this size in bytes
+        :param backupCount: number of rotated files to keep before deleting.
+        :param encoding: text encoding for logfile
+        :param debug: add extra debug statements to this class (for development)
+        :param delay: see note below
+        :param use_gzip: automatically gzip rotated logs if available.
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
@@ -152,6 +173,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         self.stream_lock = None
         self._debug = debug
+        self.use_gzip = True if gzip and use_gzip else False
 
         # How many times have we recursively locked ourselves?
         # https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
@@ -342,6 +364,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             try:
                 # Do a rename test to determine if we can successfully rename the log file
                 os.rename(self.baseFilename, tmpname)
+                if self.use_gzip:
+                    self.do_gzip(tmpname)
             except (IOError, OSError):
                 exc_value = sys.exc_info()[1]
                 self._console_log(
@@ -349,6 +373,22 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self._degrade(
                     True,  "rename failed.  File in use? exception=%s", exc_value)
                 return
+
+            gzip_ext = ''
+            if self.use_gzip:
+                gzip_ext = '.gz'
+
+            def do_rename(source_fn, dest_fn):
+                self._console_log("Rename %s -> %s" % (source_fn, dest_fn + gzip_ext))
+                if os.path.exists(dest_fn):
+                    os.remove(dest_fn)
+                if os.path.exists(dest_fn + gzip_ext):
+                    os.remove(dest_fn + gzip_ext)
+                source_gzip = source_fn + gzip_ext
+                if os.path.exists(source_gzip):
+                    os.rename(source_gzip, dest_fn + gzip_ext)
+                elif os.path.exists(source_fn):
+                    os.rename(source_fn, dest_fn)
 
             # Q: Is there some way to protect this code from a KeyboardInterrupt?
             # This isn't necessarily a data loss issue, but it certainly does 
@@ -362,16 +402,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             for i in range(self.backupCount - 1, 0, -1):
                 sfn = "%s.%d" % (self.baseFilename, i)
                 dfn = "%s.%d" % (self.baseFilename, i + 1)
-                if os.path.exists(sfn):
-                    # print "%s -> %s" % (sfn, dfn)
-                    if os.path.exists(dfn):
-                        os.remove(dfn)
-                    os.rename(sfn, dfn)
+                if os.path.exists(sfn + gzip_ext):
+                    do_rename(sfn, dfn)
             dfn = self.baseFilename + ".1"
-            if os.path.exists(dfn):
-                os.remove(dfn)
-            os.rename(tmpname, dfn)
-            # print "%s -> %s" % (self.baseFilename, dfn)
+            do_rename(tmpname, dfn)
             self._console_log("Rotation completed")
             self._degrade(False, "Rotation completed")
         finally:
@@ -413,6 +447,17 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self._degrade(False, "Rotation done or not needed at this time")
         return False
 
+    def do_gzip(self, input_filename):
+        if not gzip:
+            self._console_log("#no gzip available", stack=False)
+            return
+        out_filename = input_filename + ".gz"
+        with open(input_filename, "rb") as input_fh:
+            with gzip.open(out_filename, "wb") as gzip_fh:
+                gzip_fh.write(input_fh.read())
+        os.remove(input_filename)
+        self._console_log("#gzipped: %s" % (out_filename,), stack=False)
+        return
 
 # Publish this class to the "logging.handlers" module so that it can be use 
 # from a logging config file via logging.config.fileConfig().
