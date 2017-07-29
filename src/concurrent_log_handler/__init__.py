@@ -77,7 +77,7 @@ except ImportError:
     gzip = None
 
 
-__version__ = '0.9.4'
+__version__ = '0.9.5'
 __author__ = "Preston Landers <planders@gmail.com>"
 # __author__ = "Lowell Alleman"
 __all__ = [

@@ -1,5 +1,12 @@
 ## concurrent-log-handler ##
 
+This package provides an additional log handler for Python's standard logging
+package (PEP 282). This handler will write log events to a log file which is
+rotated when the log file reaches a certain size.  Multiple processes can
+safely write to the same log file concurrently. Rotated logs can be gzipped
+if desired. Both Windows and POSIX systems are supported.  An optional threaded 
+queue logging handler is provided to perform logging in the background.
+
 This is a fork of Lowell Alleman's ConcurrentLogHandler 0.9.1 which fixes
 a hanging/deadlocking problem. See this:
 
@@ -16,18 +23,24 @@ Summary of other changes:
 * Fix for deadlocking problem with recent versions of Python
 * More secure generation of random numbers for temporary filenames
 * Change the name of the lockfile to have .__ in front of it.
+* Provide a QueueListener / QueueHandler implementation for 
+  handling log events in a background thread (optional) 
+
 
 ## Instructions ##
 
-You can install this module by issuing the following command:
+You can download and install the package with `pip` using the following command:
+
+    pip install concurrent-log-handler
+
+If installing from source, use the following command:
 
     python setup.py install
 
-To build a Python "wheel", use the following:
+To build a Python "wheel" for distribution, use the following:
 
     python setup.py bdist_wheel
     # Copy the .whl file from under the "dist" folder
-
 
 
 Here is a simple usage example:
@@ -59,6 +72,15 @@ To use this module from a logging config file, use a handler entry like this:
 Note: you must have a "import concurrent_log_handler" before you call fileConfig(). For
 more information see http://docs.python.org/lib/logging-config-fileformat.html
 
+To use the background logging queue, you must call this code at some point in your
+app where it sets up logging configuration. Please read the doc string in the
+file `concurrent_log_handler/queue.py` for more details.
+
+    from concurrent_log_handler.queue import setup_logging_queues
+    
+    # convert all configured loggers to use a background thread
+    setup_logging_queues()
+
 This module is designed to function well in a multi-threaded or multi-processes 
 concurrent environment. However, all writers to a given log file should be using
 the same class and the *same settings* at the same time, otherwise unexpected
@@ -70,7 +92,8 @@ restart your app service so that all processes are using the same settings at th
 
 ## Change Log ##
 
-- 0.9.5: Add gzip_logs option to compress rotated logs.
+- 0.9.5: Add `use_gzip` option to compress rotated logs. Add an optional threaded 
+logging queue handler based on the standard library's `logging.QueueHandler`.
 
 - 0.9.4: Fix setup.py to not include tests in distribution.
 

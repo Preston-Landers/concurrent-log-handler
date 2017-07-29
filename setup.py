@@ -8,11 +8,12 @@
 
 Overview
 ========
-This module provides an additional log handler for Python's standard logging
-package (PEP 282). This handler will write log events to log file which is
+This package provides an additional log handler for Python's standard logging
+package (PEP 282). This handler will write log events to a log file which is
 rotated when the log file reaches a certain size.  Multiple processes can
 safely write to the same log file concurrently. Rotated logs can be gzipped
-if enabled.
+if enabled. Both Windows and POSIX systems are supported. An optional threaded
+queue logging handler is provided to perform logging in the background.
 
 This is a fork from Lowell Alleman's version with updates for Windows and
 recent versions of Python. It should be a drop-in replacement for users
@@ -49,7 +50,7 @@ This package bundles `portalocker`_ to deal with file locking.
 
 Installation
 ============
-Use the following command to install this package::
+Use the following command to download and install this package::
 
     pip install concurrent-log-handler
 
@@ -144,6 +145,9 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
+
+- 0.9.5: Add `use_gzip` option to compress rotated logs. Add an optional threaded
+logging queue handler based on the standard library's `logging.QueueHandler`.
 
 - 0.9.4: Fix setup.py to not include tests in distribution.
 
@@ -261,7 +265,7 @@ use_setuptools()
 
 from setuptools import setup
 
-VERSION = "0.9.4"
+VERSION = "0.9.5"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging
