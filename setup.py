@@ -145,7 +145,7 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
-- 0.9.6: Fix platform specifier for PyPi
+- 0.9.7 / 0.9.6: Fix platform specifier for PyPi
 
 - 0.9.5: Add `use_gzip` option to compress rotated logs. Add an optional threaded
 logging queue handler based on the standard library's `logging.QueueHandler`.
@@ -266,7 +266,7 @@ use_setuptools()
 
 from setuptools import setup
 
-VERSION = "0.9.6"
+VERSION = "0.9.7"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging
@@ -301,9 +301,9 @@ setup(name='concurrent-log-handler',
       license="http://www.apache.org/licenses/LICENSE-2.0",
       description=doc.pop(0),
       long_description="\n".join(doc),
-      platforms=["nt", "posix"],
+      # platforms=["nt", "posix"],
       # install_requires=(["pywin32"] if "win" in sys.platform else []),
-      keywords="logging, windows, linux, unix, rotate, portalocker",
+      keywords="logging, windows, linux, unix, rotate, QueueHandler, QueueListener, portalocker",
       classifiers=classifiers.splitlines(),
       zip_safe=True,
       # test_suite=unittest.TestSuite,

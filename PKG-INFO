@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: concurrent-log-handler
-Version: 0.9.6
+Version: 0.9.7
 Summary:  RotatingFileHandler replacement with concurrency, gzip and Windows support
 Home-page: https://github.com/Preston-Landers/concurrent_log_handler
 Author: Preston Landers
@@ -147,7 +147,7 @@ Description:
         
         Change Log
         ==========
-        - 0.9.6: Fix platform specifier for PyPi to include posix
+        - 0.9.7 / 0.9.6: Fix platform specifier for PyPi to include posix
 
         - 0.9.5: Add `use_gzip` option to compress rotated logs. Add an optional threaded logging
         queue handler based on the standard library's `logging.QueueHandler`.
@@ -187,7 +187,7 @@ Description:
            * For anyone still using Python 2.3-2.5, please use the latest 0.8.x release
         
         - 0.8.6:  Fixed packaging bug with test script
-           * Fix a small packaging bug from the 0.8.5 release.  (Thanks to Björn Häuser
+           * Fix a small packaging bug from the 0.8.5 release.  (Thanks to Bj?rn H?user
              for bringing this to my attention.)
            * Updated stresstest.py to always use the correct python version when
              launching sub-processes instead of the system's default "python".
