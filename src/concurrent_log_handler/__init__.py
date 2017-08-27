@@ -53,7 +53,6 @@ This module supports Python 2.6 and later.
 """
 
 import os
-import random
 import sys
 import traceback
 from logging import Handler, LogRecord
@@ -65,11 +64,18 @@ try:
 except ImportError:
     codecs = None
 
+# Random numbers for rotation temp file names, using secrets module if available (Python 3.6).
+# Otherwise use `random.SystemRandom` if available, then fall back on `random.Random`.
 try:
     # noinspection PyPackageRequirements
-    import secrets
+    from secrets import randbits
 except ImportError:
-    secrets = None
+    import random
+    if hasattr(random, "SystemRandom"):  # May not be present in all Python editions
+        # Should be safe to reuse `SystemRandom` - not software state dependant
+        randbits = random.SystemRandom().getrandbits
+    else:
+        randbits: lambda nb: random.Random().getrandbits(nb)
 
 try:
     import gzip
@@ -83,16 +89,6 @@ __author__ = "Preston Landers <planders@gmail.com>"
 __all__ = [
     "ConcurrentRotatingFileHandler",
 ]
-
-
-def get_random_bits(num_bits=64):
-    """Get a random number, using secrets module if available (Python 3.6), otherwise
-    use random.SystemRandom()."""
-    if secrets is not None and hasattr(secrets, "randbits"):
-        rand_bits = secrets.randbits(num_bits)
-    else:
-        rand_bits = random.SystemRandom().getrandbits(num_bits)
-    return rand_bits
 
 
 # Workaround for handleError() in Python 2.7+ where record is written to stderr
@@ -262,6 +258,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._console_log("In acquire", stack=True)
 
         # handle thread lock
+        # Wait - why is not call to BaseRotatingHandler.acquire?
         Handler.acquire(self)
 
         # noinspection PyBroadException
@@ -360,7 +357,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             # There is a slight race-condition here, but it seems unavoidable
             tmpname = None
             while not tmpname or os.path.exists(tmpname):
-                tmpname = "%s.rotate.%08d" % (self.baseFilename, get_random_bits(64))
+                tmpname = "%s.rotate.%08d" % (self.baseFilename, randbits(64))
             try:
                 # Do a rename test to determine if we can successfully rename the log file
                 os.rename(self.baseFilename, tmpname)
@@ -452,6 +449,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._console_log("#no gzip available", stack=False)
             return
         out_filename = input_filename + ".gz"
+        # TODO: we probably need to buffer large files here to avoid memory problems
         with open(input_filename, "rb") as input_fh:
             with gzip.open(out_filename, "wb") as gzip_fh:
                 gzip_fh.write(input_fh.read())

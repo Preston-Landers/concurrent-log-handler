@@ -111,3 +111,13 @@ logging queue handler based on the standard library's `logging.QueueHandler`.
    * Puts `.__` prefix in front of lock file name
    * Use `secrets` or `SystemRandom` if available.
    * Add/fix Windows support
+
+## Contributors ##
+
+The following folks were kind enough to contribute to this fork:
+
+https://github.com/Preston-Landers
+
+https://github.com/und3rc
+
+https://github.com/wcooley
