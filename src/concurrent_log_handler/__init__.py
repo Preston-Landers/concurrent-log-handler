@@ -55,9 +55,10 @@ This module supports Python 2.6 and later.
 import os
 import sys
 import traceback
-from logging import Handler, LogRecord
+from logging import LogRecord
 from logging.handlers import BaseRotatingHandler
-from concurrent_log_handler.portalocker import lock, unlock, LOCK_EX, LOCK_NB, LockException
+
+from concurrent_log_handler.portalocker import LOCK_EX, LOCK_NB, LockException, lock, unlock
 
 try:
     import codecs
@@ -71,17 +72,18 @@ try:
     from secrets import randbits
 except ImportError:
     import random
+
     if hasattr(random, "SystemRandom"):  # May not be present in all Python editions
         # Should be safe to reuse `SystemRandom` - not software state dependant
         randbits = random.SystemRandom().getrandbits
     else:
-        randbits: lambda nb: random.Random().getrandbits(nb)
+        def randbits(nb):
+            return random.Random().getrandbits(nb)
 
 try:
     import gzip
 except ImportError:
     gzip = None
-
 
 __version__ = '0.9.7'
 __author__ = "Preston Landers <planders@gmail.com>"
@@ -161,7 +163,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         """
         self.stream = None
         # Absolute file name handling done by FileHandler since Python 2.5  
-        BaseRotatingHandler.__init__(self, filename, mode, encoding, delay)
+        super(ConcurrentRotatingFileHandler, self).__init__(
+            filename, mode, encoding=encoding, delay=delay)
         self.delay = delay
         self._rotateFailed = False
         self.maxBytes = maxBytes
@@ -258,8 +261,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._console_log("In acquire", stack=True)
 
         # handle thread lock
-        # Wait - why is not call to BaseRotatingHandler.acquire?
-        Handler.acquire(self)
+        super(ConcurrentRotatingFileHandler, self).acquire()
 
         # noinspection PyBroadException
         try:
@@ -305,7 +307,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self.handleError(NullLogRecord())
             finally:
                 # release thread lock
-                Handler.release(self)
+                super(ConcurrentRotatingFileHandler, self).release()
 
     def close(self):
         """
@@ -316,7 +318,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         finally:
             self._do_file_unlock()
             self.stream_lock = None
-            Handler.close(self)
+            super(ConcurrentRotatingFileHandler, self).close()
 
     def _degrade(self, degrade, msg, *args):
         """ Set degrade mode or not.  Ignore msg. """
@@ -368,7 +370,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self._console_log(
                     "rename failed.  File in use? exception=%s" % (exc_value,))
                 self._degrade(
-                    True,  "rename failed.  File in use? exception=%s", exc_value)
+                    True, "rename failed.  File in use? exception=%s", exc_value)
                 return
 
             gzip_ext = ''
@@ -457,7 +459,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._console_log("#gzipped: %s" % (out_filename,), stack=False)
         return
 
-# Publish this class to the "logging.handlers" module so that it can be use 
+
+# Publish this class to the "logging.handlers" module so that it can be use
 # from a logging config file via logging.config.fileConfig().
 import logging.handlers
 

@@ -86,10 +86,13 @@ class LockTimeoutException(RuntimeError):
 
 
 if os.name == 'nt':
-    import win32con
-    import win32file
-    import pywintypes
-    import struct
+    try:
+        import win32con
+        import win32file
+        import pywintypes
+        import struct
+    except ImportError as e:
+        raise ImportError("PyWin32 must be installed to use this package. %s" % (e,))
 
     LOCK_EX = win32con.LOCKFILE_EXCLUSIVE_LOCK
     LOCK_SH = 0  # the default

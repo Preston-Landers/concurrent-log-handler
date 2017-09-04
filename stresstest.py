@@ -20,7 +20,7 @@ from subprocess import Popen
 from time import sleep
 
 # local lib; for testing
-from concurrent_log_handler import ConcurrentRotatingFileHandler, get_random_bits
+from concurrent_log_handler import ConcurrentRotatingFileHandler, randbits
 
 __version__ = '$Id$'
 __author__ = 'Lowell Alleman'
@@ -95,11 +95,11 @@ class RotateLogStressTester:
             c += 1
             msg = random.choice(msgs)
             logfunc = random.choice(logfuncts)
-            logfunc(msg, get_random_bits(64))
+            logfunc(msg, randbits(64))
 
             if self.random_sleep_mode and c % 1000 == 0:
                 # Sleep from 0-15 seconds
-                s = get_random_bits(64)
+                s = randbits(64)
                 print("PID %d sleeping for %d seconds" % (os.getpid(), s))
                 sleep(s)
                 # break
