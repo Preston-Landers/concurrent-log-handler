@@ -2,6 +2,8 @@
 #                  Requires python 1.5.2 or better.
 """Cross-platform (posix/nt) API for flock-style file locking.
 
+TODO: possibly change to use this: https://github.com/WoLpH/portalocker
+
 Synopsis:
 
    from concurrent_log_handler import portalocker
