@@ -52,6 +52,7 @@ This module supports Python 2.6 and later.
 
 """
 
+import pwd, grp, stat
 import os
 import sys
 import traceback
@@ -162,6 +163,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         the RotatingFileHandler is used by another.
         """
         self.stream = None
+        self.use_gzip = True if gzip and use_gzip else False
         # Absolute file name handling done by FileHandler since Python 2.5  
         super(ConcurrentRotatingFileHandler, self).__init__(
             filename, mode, encoding=encoding, delay=delay)
@@ -172,7 +174,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         self.stream_lock = None
         self._debug = debug
-        self.use_gzip = True if gzip and use_gzip else False
 
         # How many times have we recursively locked ourselves?
         # https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
@@ -230,6 +231,18 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             stream = open(self.baseFilename, mode)
         else:
             stream = codecs.open(self.baseFilename, mode, self.encoding)
+
+        # Set file permission
+        rotated_file_name = '%s.1%s' % (self.baseFilename, '.gz' if self.use_gzip else '')
+        if os.path.exists(rotated_file_name):
+            currMode = os.stat(rotated_file_name).st_mode
+            os.chmod(self.baseFilename, currMode)
+
+            # Set file owner
+            uid = os.stat(rotated_file_name).st_uid
+            gid = os.stat(rotated_file_name).st_gid
+            os.chown(self.baseFilename, uid, gid)
+
         return stream
 
     def _close(self):
@@ -363,6 +376,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             try:
                 # Do a rename test to determine if we can successfully rename the log file
                 os.rename(self.baseFilename, tmpname)
+
                 if self.use_gzip:
                     self.do_gzip(tmpname)
             except (IOError, OSError):
@@ -405,6 +419,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     do_rename(sfn, dfn)
             dfn = self.baseFilename + ".1"
             do_rename(tmpname, dfn)
+
             self._console_log("Rotation completed")
             self._degrade(False, "Rotation completed")
         finally:
@@ -458,7 +473,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         os.remove(input_filename)
         self._console_log("#gzipped: %s" % (out_filename,), stack=False)
         return
-
 
 # Publish this class to the "logging.handlers" module so that it can be use
 # from a logging config file via logging.config.fileConfig().
