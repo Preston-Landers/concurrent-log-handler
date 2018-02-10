@@ -54,6 +54,7 @@ This module supports Python 2.6 and later.
 
 import os
 import sys
+import pwd, grp
 import traceback
 from logging import LogRecord
 from logging.handlers import BaseRotatingHandler
@@ -111,7 +112,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     """
 
     def __init__(self, filename, mode='a', maxBytes=0, backupCount=0,
-                 encoding=None, debug=False, delay=0, use_gzip=False):
+                 encoding=None, debug=False, delay=0, use_gzip=False, owner=None, chmod=None):
         """
         Open the specified file and use it as the stream for logging.
 
@@ -162,6 +163,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         the RotatingFileHandler is used by another.
         """
         self.stream = None
+        self.owner = owner
+        self.chmod = chmod
         # Absolute file name handling done by FileHandler since Python 2.5  
         super(ConcurrentRotatingFileHandler, self).__init__(
             filename, mode, encoding=encoding, delay=delay)
@@ -201,6 +204,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             "concurrent-log-handler %s opening %s" % (hash(self), lock_file), stack=False)
         self.stream_lock = open(lock_file, "wb", buffering=0)
 
+        self._do_chown_and_chmod(lock_file)
+
     def _do_file_unlock(self):
         self._console_log("in _do_file_unlock for %s" % (self.stream_lock,), stack=False)
         self._stream_lock_count = 0
@@ -230,6 +235,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             stream = open(self.baseFilename, mode)
         else:
             stream = codecs.open(self.baseFilename, mode, self.encoding)
+
+        self._do_chown_and_chmod(self.baseFilename)
+
         return stream
 
     def _close(self):
@@ -405,6 +413,11 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     do_rename(sfn, dfn)
             dfn = self.baseFilename + ".1"
             do_rename(tmpname, dfn)
+
+            if self.use_gzip:
+                logFilename = self.baseFilename + ".1.gz"
+                self._do_chown_and_chmod(logFilename)
+
             self._console_log("Rotation completed")
             self._degrade(False, "Rotation completed")
         finally:
@@ -458,6 +471,16 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         os.remove(input_filename)
         self._console_log("#gzipped: %s" % (out_filename,), stack=False)
         return
+    
+    def _do_chown_and_chmod(self, filename):
+        if self.owner:
+            uid = pwd.getpwnam(self.owner[0]).pw_uid
+            gid = grp.getgrnam(self.owner[1]).gr_gid
+
+            os.chown(filename, uid, gid)
+
+        if self.chmod:
+            os.chmod(filename, self.chmod)
 
 
 # Publish this class to the "logging.handlers" module so that it can be use
