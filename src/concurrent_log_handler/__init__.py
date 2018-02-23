@@ -52,6 +52,7 @@ This module supports Python 2.6 and later.
 
 """
 
+import pwd, grp, stat
 import os
 import sys
 import pwd, grp
@@ -124,6 +125,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         :param debug: add extra debug statements to this class (for development)
         :param delay: see note below
         :param use_gzip: automatically gzip rotated logs if available.
+        :param owner: owner of log files.
+        :param chmod: permission of log files.
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
@@ -165,6 +168,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.stream = None
         self.owner = owner
         self.chmod = chmod
+        self.use_gzip = True if gzip and use_gzip else False
         # Absolute file name handling done by FileHandler since Python 2.5  
         super(ConcurrentRotatingFileHandler, self).__init__(
             filename, mode, encoding=encoding, delay=delay)
@@ -371,6 +375,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             try:
                 # Do a rename test to determine if we can successfully rename the log file
                 os.rename(self.baseFilename, tmpname)
+
                 if self.use_gzip:
                     self.do_gzip(tmpname)
             except (IOError, OSError):
@@ -481,7 +486,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         if self.chmod:
             os.chmod(filename, self.chmod)
-
 
 # Publish this class to the "logging.handlers" module so that it can be use
 # from a logging config file via logging.config.fileConfig().

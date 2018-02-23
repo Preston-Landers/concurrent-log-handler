@@ -10,5 +10,5 @@ __pycache__
 env
 venv
 env_py27
-*.lock
 *.log*
+.__*.lock
