@@ -52,7 +52,6 @@ This module supports Python 2.6 and later.
 
 """
 
-import pwd, grp, stat
 import os
 import sys
 import pwd, grp
