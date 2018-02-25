@@ -255,6 +255,54 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             stack_str = ":\n" + "".join(traceback.format_stack())
         print("[%s %s %s] %s%s" % (tid, pid, hash(self), msg, stack_str,))
 
+    def handleError(self, record):
+        """
+        Handle errors which occur during an emit() call.
+
+        NOTE: TEMPORARY override to avoid skipping logging modules on stack trace
+
+        This method should be called from handlers when an exception is
+        encountered during an emit() call. If raiseExceptions is false,
+        exceptions get silently ignored. This is what is mostly wanted
+        for a logging system - most users will not care about errors in
+        the logging system, they are more interested in application errors.
+        You could, however, replace this with a custom handler if you wish.
+        The record which was being processed is passed in to this method.
+        """
+        from logging import raiseExceptions
+        if raiseExceptions and sys.stderr:  # see issue 13807
+            t, v, tb = sys.exc_info()
+            try:
+                sys.stderr.write('--- Logging error ---\n')
+                traceback.print_exception(t, v, tb, None, sys.stderr)
+                sys.stderr.write('Call stack:\n')
+                # Walk the stack frame up until we're out of logging,
+                # so as to print the calling context.
+                frame = tb.tb_frame
+                # while (frame and os.path.dirname(frame.f_code.co_filename) ==
+                #        __path__[0]):
+                #     frame = frame.f_back
+                if frame:
+                    traceback.print_stack(frame, file=sys.stderr)
+                else:
+                    # couldn't find the right stack frame, for some reason
+                    sys.stderr.write('Logged from file %s, line %s\n' % (
+                        record.filename, record.lineno))
+                # Issue 18671: output logging message and arguments
+                try:
+                    sys.stderr.write('Message: %r\n'
+                                     'Arguments: %s\n' % (record.msg,
+                                                          record.args))
+                except Exception:
+                    sys.stderr.write('Unable to print the message and arguments'
+                                     ' - possible formatting error.\nUse the'
+                                     ' traceback above to help find the error.\n'
+                                     )
+            except OSError: #pragma: no cover
+                pass    # see issue 5971
+            finally:
+                del t, v, tb
+
     def acquire(self):
         """ Acquire thread and file locks.  Re-opening log for 'degraded' mode.
         """
@@ -267,6 +315,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         try:
             self._open_lockfile()
         except Exception:
+            # XXX TODO: should return here?!
             self.handleError(NullLogRecord())
 
         # Issue a file lock.  (This is inefficient for multiple active threads
