@@ -54,7 +54,6 @@ This module supports Python 2.6 and later.
 
 import os
 import sys
-import pwd, grp
 import traceback
 from logging import LogRecord
 from logging.handlers import BaseRotatingHandler
@@ -65,6 +64,12 @@ try:
     import codecs
 except ImportError:
     codecs = None
+
+try:
+    import pwd
+    import grp
+except ImportError:
+    pwd = grp = None
 
 # Random numbers for rotation temp file names, using secrets module if available (Python 3.6).
 # Otherwise use `random.SystemRandom` if available, then fall back on `random.Random`.
@@ -124,8 +129,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         :param debug: add extra debug statements to this class (for development)
         :param delay: see note below
         :param use_gzip: automatically gzip rotated logs if available.
-        :param owner: owner of log files.
-        :param chmod: permission of log files.
+        :param owner: 2 element sequence with (user owner, group owner) of log files.  (Unix only)
+        :param chmod: permission of log files.  (Unix only)
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
@@ -477,14 +482,15 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         return
     
     def _do_chown_and_chmod(self, filename):
-        if self.owner:
+        if self.owner and os.chown and pwd and grp:
             uid = pwd.getpwnam(self.owner[0]).pw_uid
             gid = grp.getgrnam(self.owner[1]).gr_gid
 
             os.chown(filename, uid, gid)
 
-        if self.chmod:
+        if self.chmod and os.chmod:
             os.chmod(filename, self.chmod)
+
 
 # Publish this class to the "logging.handlers" module so that it can be use
 # from a logging config file via logging.config.fileConfig().

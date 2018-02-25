@@ -17,7 +17,7 @@ LOGGING = {
             'formatter': 'default',
             'filename': 'test.log',
             'owner': ['greenfrog', 'admin'],
-            'chmod': 0660,
+            'chmod': 0o0660,
             'maxBytes': 30,
             'backupCount': 10,
             'use_gzip': True,
