@@ -123,3 +123,10 @@ https://github.com/Preston-Landers
 https://github.com/und3rc
 
 https://github.com/wcooley
+
+https://github.com/greenfrog82
+
+## TODO ## 
+
+We should probably preserve existing owners and permissions on the
+log file when we roll it over.
