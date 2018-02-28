@@ -65,6 +65,12 @@ try:
 except ImportError:
     codecs = None
 
+try:
+    import pwd
+    import grp
+except ImportError:
+    pwd = grp = None
+
 # Random numbers for rotation temp file names, using secrets module if available (Python 3.6).
 # Otherwise use `random.SystemRandom` if available, then fall back on `random.Random`.
 try:
@@ -111,7 +117,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     """
 
     def __init__(self, filename, mode='a', maxBytes=0, backupCount=0,
-                 encoding=None, debug=False, delay=0, use_gzip=False):
+                 encoding=None, debug=False, delay=0, use_gzip=False, owner=None, chmod=None):
         """
         Open the specified file and use it as the stream for logging.
 
@@ -123,6 +129,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         :param debug: add extra debug statements to this class (for development)
         :param delay: see note below
         :param use_gzip: automatically gzip rotated logs if available.
+        :param owner: 2 element sequence with (user owner, group owner) of log files.  (Unix only)
+        :param chmod: permission of log files.  (Unix only)
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
@@ -162,6 +170,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         the RotatingFileHandler is used by another.
         """
         self.stream = None
+        self.owner = owner
+        self.chmod = chmod
+        self.use_gzip = True if gzip and use_gzip else False
         # Absolute file name handling done by FileHandler since Python 2.5  
         super(ConcurrentRotatingFileHandler, self).__init__(
             filename, mode, encoding=encoding, delay=delay)
@@ -201,6 +212,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             "concurrent-log-handler %s opening %s" % (hash(self), lock_file), stack=False)
         self.stream_lock = open(lock_file, "wb", buffering=0)
 
+        self._do_chown_and_chmod(lock_file)
+
     def _do_file_unlock(self):
         self._console_log("in _do_file_unlock for %s" % (self.stream_lock,), stack=False)
         self._stream_lock_count = 0
@@ -230,6 +243,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             stream = open(self.baseFilename, mode)
         else:
             stream = codecs.open(self.baseFilename, mode, self.encoding)
+
+        self._do_chown_and_chmod(self.baseFilename)
+
         return stream
 
     def _close(self):
@@ -412,6 +428,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             try:
                 # Do a rename test to determine if we can successfully rename the log file
                 os.rename(self.baseFilename, tmpname)
+
                 if self.use_gzip:
                     self.do_gzip(tmpname)
             except (IOError, OSError):
@@ -454,6 +471,11 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     do_rename(sfn, dfn)
             dfn = self.baseFilename + ".1"
             do_rename(tmpname, dfn)
+
+            if self.use_gzip:
+                logFilename = self.baseFilename + ".1.gz"
+                self._do_chown_and_chmod(logFilename)
+
             self._console_log("Rotation completed")
             self._degrade(False, "Rotation completed")
         finally:
@@ -507,6 +529,16 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         os.remove(input_filename)
         self._console_log("#gzipped: %s" % (out_filename,), stack=False)
         return
+    
+    def _do_chown_and_chmod(self, filename):
+        if self.owner and os.chown and pwd and grp:
+            uid = pwd.getpwnam(self.owner[0]).pw_uid
+            gid = grp.getgrnam(self.owner[1]).gr_gid
+
+            os.chown(filename, uid, gid)
+
+        if self.chmod and os.chmod:
+            os.chmod(filename, self.chmod)
 
 
 # Publish this class to the "logging.handlers" module so that it can be use
