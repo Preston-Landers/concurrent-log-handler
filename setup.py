@@ -20,9 +20,6 @@ recent versions of Python. It should be a drop-in replacement for users
 of the old version, except for changing the package name from
 `cloghandler` to `concurrent_log_handler`.
 
-Note: PyWin32 is required on Windows, but can't be installed as an
-automatic dependency because it's not currently installable through pip.
-
 Details
 =======
 .. _portalocker:  http://code.activestate.com/recipes/65203/
@@ -145,7 +142,8 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
-- 0.9.8: Fix for PyWin32 dependency specification
+- 0.9.8: Fix for PyWin32 dependency specification (explicitly require PyWin32)
+    Ability to specify owner and permissions (mode) of rollover files [Unix only]
 
 - 0.9.7 / 0.9.6: Fix platform specifier for PyPi
 
@@ -285,6 +283,15 @@ License :: OSI Approved :: Apache Software License
 """
 doc = __doc__.splitlines()
 
+install_requires = []
+if "win" in sys.platform:
+    try:
+        import win32file
+    except ImportError:
+        # Only require pywin32 if not already installed
+        # version 223 introduced ability to install from pip
+        install_requires.append("pywin32>=223")
+
 setup(name='concurrent-log-handler',
       version=VERSION,
       author="Preston Landers",
@@ -304,7 +311,7 @@ setup(name='concurrent-log-handler',
       description=doc.pop(0),
       long_description="\n".join(doc),
       # platforms=["nt", "posix"],
-      # install_requires=(["pywin32"] if "win" in sys.platform else []),
+      install_requires=install_requires,
       keywords="logging, windows, linux, unix, rotate, QueueHandler, QueueListener, portalocker",
       classifiers=classifiers.splitlines(),
       zip_safe=True,

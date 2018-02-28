@@ -18,8 +18,6 @@ Summary of other changes:
 * portalocker is inside the package, not a separate module.
 * Provide `use_gzip` option to compress rotated logs
 * Support for Windows
-  * Note: PyWin32 is required on Windows, but can't be installed as an
-    automatic dependency because it's not currently installable through pip.
 * Fix for deadlocking problem with recent versions of Python
 * More secure generation of random numbers for temporary filenames
 * Change the name of the lockfile to have .__ in front of it.
@@ -92,7 +90,8 @@ restart your app service so that all processes are using the same settings at th
 
 ## Change Log ##
 
-- 0.9.8: Fix for PyWin32 dependency specification
+- 0.9.8: Fix for PyWin32 dependency specification (explicitly require PyWin32)
+    Ability to specify owner and permissions (mode) of rollover files [Unix only]
 
 - 0.9.7/0.9.6: Fix platform specifier for PyPi
 
