@@ -54,6 +54,7 @@ This module supports Python 2.6 and later.
 
 import os
 import sys
+import time
 import traceback
 from logging import LogRecord
 from logging.handlers import BaseRotatingHandler
@@ -149,18 +150,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         If maxBytes is zero, rollover never occurs.
 
-        On Windows, it is not possible to rename a file that is currently opened
-        by another process.  This means that it is not possible to rotate the
-        log files if multiple processes is using the same log file.  In this
-        case, the current log file will continue to grow until the rotation can
-        be completed successfully.  In order for rotation to be possible, all of
-        the other processes need to close the file first.  A mechanism, called
-        "degraded" mode, has been created for this scenario.  In degraded mode,
-        the log file is closed after each log message is written.  So once all
-        processes have entered degraded mode, the next rotation attempt should
-        be successful and then normal logging can be resumed.  Using the 'delay'
-        parameter may help reduce contention in some usage patterns.
-
         This log handler assumes that all concurrent processes logging to a
         single file will are using only this class, and that the exact same
         parameters are provided to each instance of this class.  If, for
@@ -170,29 +159,29 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         the RotatingFileHandler is used by another.
         """
         self.stream = None
+        self.stream_lock = None
         self.owner = owner
         self.chmod = chmod
+        self._set_uid = None
+        self._set_gid = None
         self.use_gzip = True if gzip and use_gzip else False
-        # Absolute file name handling done by FileHandler since Python 2.5  
-        super(ConcurrentRotatingFileHandler, self).__init__(
-            filename, mode, encoding=encoding, delay=delay)
         self.delay = delay
         self._rotateFailed = False
         self.maxBytes = maxBytes
         self.backupCount = backupCount
 
-        self.stream_lock = None
         self._debug = debug
         self.use_gzip = True if gzip and use_gzip else False
 
-        # How many times have we recursively locked ourselves?
-        # https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
-        self._stream_lock_count = 0
+        # Absolute file name handling done by FileHandler since Python 2.5
+        super(ConcurrentRotatingFileHandler, self).__init__(
+            filename, mode, encoding=encoding, delay=delay)
 
-        # For debug mode, swap out the "_degrade()" method with a more a verbose one.
-        if debug:
-            self._degrade = self._degrade_debug
-            # self._console_log("concurrent-log-handler init %s" % (hash(self)), stack=False)
+        if owner and os.chown and pwd and grp:
+            self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid
+            self._set_gid = grp.getgrnam(self.owner[1]).gr_gid
+
+        self._open_lockfile()
 
     def _open_lockfile(self):
         if self.stream_lock and not self.stream_lock.closed:
@@ -214,23 +203,12 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         self._do_chown_and_chmod(lock_file)
 
-    def _do_file_unlock(self):
-        self._console_log("in _do_file_unlock for %s" % (self.stream_lock,), stack=False)
-        self._stream_lock_count = 0
-        try:
-            if self.stream_lock:
-                unlock(self.stream_lock)
-                self.stream_lock.close()
-                self.stream_lock = None
-            self._close()
-            self._console_log(
-                ">release complete lock for %s" % (self.stream_lock,), stack=False)
-        except (OSError, ValueError, LockException) as e:
-            # May be closed already but that's ok
-            self._console_log(e, stack=True)
-            # pass
-
     def _open(self, mode=None):
+        # Normally we don't hold the stream open. Only do_open does that
+        # which is called from do_write().
+        return None
+
+    def do_open(self, mode=None):
         """
         Open the current base file with the (original) mode and encoding.
         Return the resulting stream.
@@ -251,6 +229,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     def _close(self):
         """ Close file stream.  Unlike close(), we don't tear anything down, we
         expect the log to be re-opened after rotation."""
+
         if self.stream:
             try:
                 if not self.stream.closed:
@@ -269,7 +248,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         stack_str = ''
         if stack:
             stack_str = ":\n" + "".join(traceback.format_stack())
-        print("[%s %s %s] %s%s" % (tid, pid, hash(self), msg, stack_str,))
+        asctime = time.asctime()
+        print("[%s %s %s] %s%s" % (tid, pid, asctime, msg, stack_str,))
 
     def handleError(self, record):
         """
@@ -314,65 +294,70 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                                      ' - possible formatting error.\nUse the'
                                      ' traceback above to help find the error.\n'
                                      )
+                # raise RuntimeError("STOP")
             except OSError: #pragma: no cover
                 pass    # see issue 5971
             finally:
                 del t, v, tb
 
-    def acquire(self):
-        """ Acquire thread and file locks.  Re-opening log for 'degraded' mode.
+    def emit(self, record):
         """
-        self._console_log("In acquire", stack=True)
+        Emit a record.
 
-        # handle thread lock
-        super(ConcurrentRotatingFileHandler, self).acquire()
-
-        # noinspection PyBroadException
+        Override from parent class to handle file locking for the duration of rollover and write.
+        This also does the formatting *before* locks are obtain, in case the format itself does
+        logging calls from within.
+        """
         try:
-            self._open_lockfile()
-        except Exception:
-            # XXX TODO: should return here?!
-            self.handleError(NullLogRecord())
-
-        # Issue a file lock.  (This is inefficient for multiple active threads
-        # within a single process. But if you're worried about high-performance,
-        # you probably aren't using this log handler.)
-        self._stream_lock_count += 1
-        self._console_log(">> stream_lock_count = %s" % (self._stream_lock_count,))
-        if self._stream_lock_count == 1:
-            self._console_log(">Getting lock for %s" % (self.stream_lock,), stack=True)
-
-            lock(self.stream_lock, LOCK_EX)
-            self.stream = self._open()
-            # self._console_log("Got lock", stack=False)
-            # Stream will be opened as part by FileHandler.emit()
-
-    # noinspection PyBroadException
-    def release(self):
-        """ Release file and thread locks. If in 'degraded' mode, close the
-        stream to reduce contention until the log files can be rotated. """
-        self._console_log("In release", stack=True)
-        try:
-            if self._rotateFailed:
-                self._close()
-        except Exception:
-            self.handleError(NullLogRecord())
-        finally:
+            msg = self.format(record)
             try:
-                self._stream_lock_count -= 1
-                if self._stream_lock_count < 0:
-                    self._stream_lock_count = 0
-                if self._stream_lock_count == 0:
-                    self._do_file_unlock()
-                    self._console_log("#completed release", stack=False)
-                elif self._stream_lock_count:
-                    self._console_log(
-                        "#inner release (%s)" % (self._stream_lock_count,), stack=True)
-            except Exception:
-                self.handleError(NullLogRecord())
+                self._do_lock()
+
+                try:
+                    if self.shouldRollover(record):
+                        self.doRollover()
+                except Exception as e:
+                    self._console_log("Unable to do rollover: %s" % (e,), stack=True)
+                    # Continue on anyway
+
+                self.do_write(msg)
+                # stream = self.stream
+                # stream.write(msg)
+                # stream.write(self.terminator)
+                # self.flush()
             finally:
-                # release thread lock
-                super(ConcurrentRotatingFileHandler, self).release()
+                self._do_unlock()
+
+        except Exception:
+            self.handleError(record)
+
+    def flush(self):
+        """Does nothing; stream is flushed on each write."""
+        return
+
+    def do_write(self, msg):
+        """Handling writing an individual record; we do a fresh open every time.
+        This assumes emit() has already locked the file."""
+        self.stream = self.do_open()
+        stream = self.stream
+        stream.write(msg)
+        if self.terminator:
+            stream.write(self.terminator)
+        stream.flush()
+        self._close()
+        return
+
+    def _do_lock(self):
+        if self.stream_lock:
+            lock(self.stream_lock, LOCK_EX)
+        else:
+            self._console_log("No self.stream_lock to lock", stack=True)
+
+    def _do_unlock(self):
+        if self.stream_lock:
+            unlock(self.stream_lock)
+        else:
+            self._console_log("No self.stream_lock to unlock", stack=True)
 
     def close(self):
         """
@@ -380,31 +365,16 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._console_log("In close()", stack=True)
         try:
             self._close()
+
+            if self.stream_lock:
+                unlock(self.stream_lock)
+                self.stream_lock.close()
+                self.stream_lock = None
+
         finally:
-            self._do_file_unlock()
-            self.stream_lock = None
+            # self._do_file_unlock()
+            # self.stream_lock = None
             super(ConcurrentRotatingFileHandler, self).close()
-
-    def _degrade(self, degrade, msg, *args):
-        """ Set degrade mode or not.  Ignore msg. """
-        self._rotateFailed = degrade
-        del msg, args  # avoid pychecker warnings
-
-    def _degrade_debug(self, degrade, msg, *args):
-        """ A more colorful version of _degade(). (This is enabled by passing
-        "debug=True" at initialization).
-        """
-        if degrade:
-            if not self._rotateFailed:
-                sys.stderr.write("Degrade mode - ENTERING - (pid=%d)  %s\n" %
-                                 (os.getpid(), msg % args))
-                self._rotateFailed = True
-        else:
-            if self._rotateFailed:
-                # self._console_log("Exiting degrade")
-                sys.stderr.write("Degrade mode - EXITING  - (pid=%d)   %s\n" %
-                                 (os.getpid(), msg % args))
-                self._rotateFailed = False
 
     def doRollover(self):
         """
@@ -414,7 +384,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         if self.backupCount <= 0:
             # Don't keep any backups, just overwrite the existing backup file
             # Locking doesn't much matter here; since we are overwriting it anyway
-            self.stream = self._open("w")
+            self.stream = self.do_open("w")
+            self._close()
             return
         try:
             # Determine if we can rename the log file or not. Windows refuses to
@@ -434,9 +405,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             except (IOError, OSError):
                 exc_value = sys.exc_info()[1]
                 self._console_log(
-                    "rename failed.  File in use? exception=%s" % (exc_value,))
-                self._degrade(
-                    True, "rename failed.  File in use? exception=%s", exc_value)
+                    "rename failed.  File in use? exception=%s" % (exc_value,), stack=True)
+                # self._degrade(
+                #     True, "rename failed.  File in use? exception=%s", exc_value)
                 return
 
             gzip_ext = ''
@@ -477,13 +448,14 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self._do_chown_and_chmod(logFilename)
 
             self._console_log("Rotation completed")
-            self._degrade(False, "Rotation completed")
+            # self._degrade(False, "Rotation completed")
         finally:
             # Re-open the output stream, but if "delay" is enabled then wait
             # until the next emit() call. This could reduce rename contention in
             # some usage patterns.
             if not self.delay:
-                self.stream = self._open()
+                # self.stream = self._open()
+                pass
 
     def shouldRollover(self, record):
         """
@@ -494,27 +466,19 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         the file size under maxBytes we ignore the length of the current record.
         """
         del record  # avoid pychecker warnings
-        # Is stream is not yet open, skip rollover check. (Check will occur on
-        # next message, after emit() calls _open())
-        if self.stream is None:
-            return False
-        if self._shouldRollover():
-            # If some other process already did the rollover (which is possible
-            # on Unix) the file our stream may now be named "log.1", thus
-            # triggering another rollover. Avoid this by closing and opening
-            # "log" again.
-            self._close()
-            self.stream = self._open()
-            return self._shouldRollover()
-        return False
+        return self._shouldRollover()
 
     def _shouldRollover(self):
         if self.maxBytes > 0:  # are we rolling over?
-            self.stream.seek(0, 2)  # due to non-posix-compliant Windows feature
-            if self.stream.tell() >= self.maxBytes:
-                return True
-            else:
-                self._degrade(False, "Rotation done or not needed at this time")
+            self.stream = self.do_open()
+            try:
+                self.stream.seek(0, 2)  # due to non-posix-compliant Windows feature
+                if self.stream.tell() >= self.maxBytes:
+                    return True
+            finally:
+                self._close()
+            # else:
+            #     self._degrade(False, "Rotation done or not needed at this time")
         return False
 
     def do_gzip(self, input_filename):
@@ -531,11 +495,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         return
     
     def _do_chown_and_chmod(self, filename):
-        if self.owner and os.chown and pwd and grp:
-            uid = pwd.getpwnam(self.owner[0]).pw_uid
-            gid = grp.getgrnam(self.owner[1]).gr_gid
-
-            os.chown(filename, uid, gid)
+        if self._set_uid and self._set_gid:
+            os.chown(filename, self._set_uid, self._set_gid)
 
         if self.chmod and os.chmod:
             os.chmod(filename, self.chmod)

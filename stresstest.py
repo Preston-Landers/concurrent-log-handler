@@ -15,9 +15,11 @@ multiple threads.
 import gzip
 import os
 import sys
+import string
 from optparse import OptionParser
 from subprocess import Popen
 from time import sleep
+from random import randint, choice
 
 # local lib; for testing
 from concurrent_log_handler import ConcurrentRotatingFileHandler, randbits
@@ -81,6 +83,7 @@ class RotateLogStressTester:
         self.run()
 
     def run(self):
+        print("Hello, calls=%s" % (self.writeLoops,))
         c = 0
         import random
         # Use a bunch of random quotes, numbers, and severity levels to mix it up a bit!
@@ -93,13 +96,19 @@ class RotateLogStressTester:
         self.log.info("Starting to write random log message.   Loop=%d", self.writeLoops)
         while c <= self.writeLoops:
             c += 1
+
+            self.log.debug(
+                "Triggering logging within format of another log: %r",
+                InnerLoggerExample(
+                    self.log, randbits(64), rand_string(1024 * 10)))
+
             msg = random.choice(msgs)
             logfunc = random.choice(logfuncts)
             logfunc(msg, randbits(64))
 
             if self.random_sleep_mode and c % 1000 == 0:
-                # Sleep from 0-15 seconds
-                s = randbits(64)
+                # Sleep from 0-5 seconds
+                s = randint(0, 5)
                 print("PID %d sleeping for %d seconds" % (os.getpid(), s))
                 sleep(s)
                 # break
@@ -137,6 +146,34 @@ def combine_logs(combinedlog, iterable, mode="w"):
     for chunk in iterable:
         fp.write(chunk)
     fp.close()
+
+
+class InnerLoggerExample(object):
+    def __init__(self, log, a, b):
+        self.log = log
+        self.a = a
+        self.b = b
+
+    def __str__(self):
+        # This should trigger a logging event within the format() handling of another event
+        self.log.debug("Inner logging example: a=%r, b=%r", self.a, self.b)
+        return "<InnerLoggerExample a=%r>" % (self.a,)
+
+    def __repr__(self):
+        return str(self)
+
+
+allchar = string.ascii_letters + string.punctuation + string.digits
+
+
+def rand_string(str_len):
+    chars = []
+    for i in range(0, str_len):
+        c = choice(allchar)
+        if i % 10 == 0:
+            c = " "
+        chars.append(c)
+    return "".join(chars)
 
 
 parser = OptionParser(
@@ -190,10 +227,17 @@ class TestManager:
             for key, val in kwargs.items():
                 setattr(self, key, val)
 
-    def __init__(self):
+    def __init__(self, output_path):
+        self.output_path = output_path
         self.tests = []
+        self.client_stdout = open(os.path.join(output_path, "client_stdout.txt"), "a")
+        self.client_stderr = open(os.path.join(output_path, "client_stderr.txt"), "a")
 
     def launchPopen(self, *args, **kwargs):
+        if "stdout" not in kwargs:
+            kwargs["stdout"] = self.client_stdout
+        if "stderr" not in kwargs:
+            kwargs["stderr"] = self.client_stdout
         proc = Popen(*args, **kwargs)
         cp = self.ChildProc(popen=proc)
         self.tests.append(cp)
@@ -254,7 +298,7 @@ def main_runner(args):
     if not os.path.isdir(options.path):
         os.makedirs(options.path)
 
-    manager = TestManager()
+    manager = TestManager(options.path)
     shared = os.path.join(options.path, "shared.log")
     for client_id in range(options.processes):
         client = os.path.join(options.path, "client.log_client%s.log" % client_id)
