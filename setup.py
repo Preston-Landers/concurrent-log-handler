@@ -142,8 +142,12 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
-- 0.9.8: Fix for PyWin32 dependency specification (explicitly require PyWin32)
-    Ability to specify owner and permissions (mode) of rollover files [Unix only]
+- 0.9.8: Bug fixes and permission features
+   * Fix for issue #4 - AttributeError: 'NoneType' object has no attribute 'write'
+      This error could be caused if a rollover occurred inside a logging statement
+      that was generated from within another logging statement's format() call.
+   * Fix for PyWin32 dependency specification (explicitly require PyWin32)
+   * Ability to specify owner and permissions (mode) of rollover files [Unix only]
 
 - 0.9.7 / 0.9.6: Fix platform specifier for PyPi
 

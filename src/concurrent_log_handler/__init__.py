@@ -10,7 +10,7 @@
 #   License for the specific language governing permissions and limitations
 #   under the License.
 
-""" concurrent_log_handler: A smart replacement for the standard RotatingFileHandler
+"""concurrent_log_handler: A smart replacement for the standard RotatingFileHandler
 
 ConcurrentRotatingFileHandler:  This class is a log handler which is a drop-in
 replacement for the python standard log handler 'RotateFileHandler', the primary
@@ -101,6 +101,7 @@ __all__ = [
 
 
 # Workaround for handleError() in Python 2.7+ where record is written to stderr
+# TODO: unused - probably can delete now.
 class NullLogRecord(LogRecord):
     def __init__(self, *args, **kw):
         super(NullLogRecord, self).__init__(*args, **kw)
@@ -251,63 +252,15 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         asctime = time.asctime()
         print("[%s %s %s] %s%s" % (tid, pid, asctime, msg, stack_str,))
 
-    def handleError(self, record):
-        """
-        Handle errors which occur during an emit() call.
-
-        NOTE: TEMPORARY override to avoid skipping logging modules on stack trace
-
-        This method should be called from handlers when an exception is
-        encountered during an emit() call. If raiseExceptions is false,
-        exceptions get silently ignored. This is what is mostly wanted
-        for a logging system - most users will not care about errors in
-        the logging system, they are more interested in application errors.
-        You could, however, replace this with a custom handler if you wish.
-        The record which was being processed is passed in to this method.
-        """
-        from logging import raiseExceptions
-        if raiseExceptions and sys.stderr:  # see issue 13807
-            t, v, tb = sys.exc_info()
-            try:
-                sys.stderr.write('--- Logging error ---\n')
-                traceback.print_exception(t, v, tb, None, sys.stderr)
-                sys.stderr.write('Call stack:\n')
-                # Walk the stack frame up until we're out of logging,
-                # so as to print the calling context.
-                frame = tb.tb_frame
-                # while (frame and os.path.dirname(frame.f_code.co_filename) ==
-                #        __path__[0]):
-                #     frame = frame.f_back
-                if frame:
-                    traceback.print_stack(frame, file=sys.stderr)
-                else:
-                    # couldn't find the right stack frame, for some reason
-                    sys.stderr.write('Logged from file %s, line %s\n' % (
-                        record.filename, record.lineno))
-                # Issue 18671: output logging message and arguments
-                try:
-                    sys.stderr.write('Message: %r\n'
-                                     'Arguments: %s\n' % (record.msg,
-                                                          record.args))
-                except Exception:
-                    sys.stderr.write('Unable to print the message and arguments'
-                                     ' - possible formatting error.\nUse the'
-                                     ' traceback above to help find the error.\n'
-                                     )
-                # raise RuntimeError("STOP")
-            except OSError: #pragma: no cover
-                pass    # see issue 5971
-            finally:
-                del t, v, tb
-
     def emit(self, record):
         """
         Emit a record.
 
         Override from parent class to handle file locking for the duration of rollover and write.
-        This also does the formatting *before* locks are obtain, in case the format itself does
-        logging calls from within.
+        This also does the formatting *before* locks are obtained, in case the format itself does
+        logging calls from within. Rollover also occurs while the lock is held.
         """
+        # noinspection PyBroadException
         try:
             msg = self.format(record)
             try:
@@ -321,10 +274,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     # Continue on anyway
 
                 self.do_write(msg)
-                # stream = self.stream
-                # stream.write(msg)
-                # stream.write(self.terminator)
-                # self.flush()
+
             finally:
                 self._do_unlock()
 
@@ -372,8 +322,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self.stream_lock = None
 
         finally:
-            # self._do_file_unlock()
-            # self.stream_lock = None
             super(ConcurrentRotatingFileHandler, self).close()
 
     def doRollover(self):
@@ -406,8 +354,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 exc_value = sys.exc_info()[1]
                 self._console_log(
                     "rename failed.  File in use? exception=%s" % (exc_value,), stack=True)
-                # self._degrade(
-                #     True, "rename failed.  File in use? exception=%s", exc_value)
                 return
 
             gzip_ext = ''
@@ -448,7 +394,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self._do_chown_and_chmod(logFilename)
 
             self._console_log("Rotation completed")
-            # self._degrade(False, "Rotation completed")
         finally:
             # Re-open the output stream, but if "delay" is enabled then wait
             # until the next emit() call. This could reduce rename contention in
@@ -477,8 +422,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     return True
             finally:
                 self._close()
-            # else:
-            #     self._degrade(False, "Rotation done or not needed at this time")
         return False
 
     def do_gzip(self, input_filename):

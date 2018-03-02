@@ -83,7 +83,7 @@ class RotateLogStressTester:
         self.run()
 
     def run(self):
-        print("Hello, calls=%s" % (self.writeLoops,))
+        print("Hello, self.writeLoops: %s" % (self.writeLoops,))
         c = 0
         import random
         # Use a bunch of random quotes, numbers, and severity levels to mix it up a bit!
