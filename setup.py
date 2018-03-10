@@ -142,6 +142,8 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
+- 0.9.9: Fix Python 2 compatibility broken in last release
+
 - 0.9.8: Bug fixes and permission features
    * Fix for issue #4 - AttributeError: 'NoneType' object has no attribute 'write'
       This error could be caused if a rollover occurred inside a logging statement
@@ -270,7 +272,7 @@ use_setuptools()
 
 from setuptools import setup
 
-VERSION = "0.9.8"
+VERSION = "0.9.9"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging

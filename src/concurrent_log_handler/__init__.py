@@ -92,7 +92,7 @@ try:
 except ImportError:
     gzip = None
 
-__version__ = '0.9.8'
+__version__ = '0.9.9'
 __author__ = "Preston Landers <planders@gmail.com>"
 # __author__ = "Lowell Alleman"
 __all__ = [
@@ -177,6 +177,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # Absolute file name handling done by FileHandler since Python 2.5
         super(ConcurrentRotatingFileHandler, self).__init__(
             filename, mode, encoding=encoding, delay=delay)
+
+        if not hasattr(self, "terminator"):
+            self.terminator = "\n"
 
         if owner and os.chown and pwd and grp:
             self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid
