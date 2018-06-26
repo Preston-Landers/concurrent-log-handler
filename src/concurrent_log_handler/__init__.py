@@ -185,7 +185,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid
             self._set_gid = grp.getgrnam(self.owner[1]).gr_gid
 
-        self._open_lockfile()
 
     def _open_lockfile(self):
         if self.stream_lock and not self.stream_lock.closed:
@@ -216,7 +215,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         """
         Open the current base file with the (original) mode and encoding.
         Return the resulting stream.
-        
+
         Note:  Copied from stdlib.  Added option to override 'mode'
         """
         if mode is None:
@@ -267,6 +266,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         try:
             msg = self.format(record)
             try:
+                self._open_lockfile()
+
                 self._do_lock()
 
                 try:
@@ -280,6 +281,11 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
             finally:
                 self._do_unlock()
+                if self.stream_lock:
+                    unlock(self.stream_lock)
+                    self.stream_lock.close()
+                    self.stream_lock = None
+
 
         except Exception:
             self.handleError(record)
@@ -318,12 +324,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._console_log("In close()", stack=True)
         try:
             self._close()
-
-            if self.stream_lock:
-                unlock(self.stream_lock)
-                self.stream_lock.close()
-                self.stream_lock = None
-
         finally:
             super(ConcurrentRotatingFileHandler, self).close()
 
@@ -376,7 +376,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     os.rename(source_fn, dest_fn)
 
             # Q: Is there some way to protect this code from a KeyboardInterrupt?
-            # This isn't necessarily a data loss issue, but it certainly does 
+            # This isn't necessarily a data loss issue, but it certainly does
             # break the rotation process during stress testing.
 
             # There is currently no mechanism in place to handle the situation
@@ -439,7 +439,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         os.remove(input_filename)
         self._console_log("#gzipped: %s" % (out_filename,), stack=False)
         return
-    
+
     def _do_chown_and_chmod(self, filename):
         if self._set_uid and self._set_gid:
             os.chown(filename, self._set_uid, self._set_gid)
