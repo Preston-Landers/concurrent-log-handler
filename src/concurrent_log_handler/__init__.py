@@ -173,6 +173,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         self._debug = debug
         self.use_gzip = True if gzip and use_gzip else False
+        self.gzip_buffer = 8096
 
         # Absolute file name handling done by FileHandler since Python 2.5
         super(ConcurrentRotatingFileHandler, self).__init__(
@@ -436,10 +437,15 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._console_log("#no gzip available", stack=False)
             return
         out_filename = input_filename + ".gz"
-        # TODO: we probably need to buffer large files here to avoid memory problems
+
         with open(input_filename, "rb") as input_fh:
             with gzip.open(out_filename, "wb") as gzip_fh:
-                gzip_fh.write(input_fh.read())
+                while True:
+                    data = input_fh.read(self.gzip_buffer)
+                    if not data:
+                        break
+                    gzip_fh.write(data)
+
         os.remove(input_filename)
         self._console_log("#gzipped: %s" % (out_filename,), stack=False)
         return
