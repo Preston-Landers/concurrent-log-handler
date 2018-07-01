@@ -142,6 +142,8 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
+- 0.9.11: Fix issues with gzip compression option (use buffering)
+
 - 0.9.10: Fix inadvertent lock sharing when forking
    Thanks to @eriktews for this fix
 
@@ -275,7 +277,7 @@ use_setuptools()
 
 from setuptools import setup
 
-VERSION = "0.9.10"
+VERSION = "0.9.11"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging

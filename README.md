@@ -90,6 +90,8 @@ restart your app service so that all processes are using the same settings at th
 
 ## Change Log ##
 
+- 0.9.11: Fix issues with gzip compression option (use buffering)
+
 - 0.9.10: Fix inadvertent lock sharing when forking
    Thanks to @eriktews for this fix
 
