@@ -75,7 +75,7 @@ except ImportError:
 # Random numbers for rotation temp file names, using secrets module if available (Python 3.6).
 # Otherwise use `random.SystemRandom` if available, then fall back on `random.Random`.
 try:
-    # noinspection PyPackageRequirements
+    # noinspection PyPackageRequirements,PyCompatibility
     from secrets import randbits
 except ImportError:
     import random
@@ -185,12 +185,15 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid
             self._set_gid = grp.getgrnam(self.owner[1]).gr_gid
 
+        self.lockFilename = self.getLockFilename()
 
-    def _open_lockfile(self):
-        if self.stream_lock and not self.stream_lock.closed:
-            self._console_log("Lockfile already open in this process")
-            return
-        # Use 'file.lock' and not 'file.log.lock' (Only handles the normal "*.log" case.)
+    def getLockFilename(self):
+        """
+        Decide the lock filename. If the logfile is file.log, then we use `.__file.lock` and
+        not `file.log.lock`. This only removes the extension if it's `*.log`.
+
+        :return: the path to the lock file.
+        """
         if self.baseFilename.endswith(".log"):
             lock_file = self.baseFilename[:-4]
         else:
@@ -199,7 +202,13 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         lock_path, lock_name = os.path.split(lock_file)
         # hide the file on Unix and generally from file completion
         lock_name = ".__" + lock_name
-        lock_file = os.path.join(lock_path, lock_name)
+        return os.path.join(lock_path, lock_name)
+
+    def _open_lockfile(self):
+        if self.stream_lock and not self.stream_lock.closed:
+            self._console_log("Lockfile already open in this process")
+            return
+        lock_file = self.lockFilename
         self._console_log(
             "concurrent-log-handler %s opening %s" % (hash(self), lock_file), stack=False)
         self.stream_lock = open(lock_file, "wb", buffering=0)
@@ -266,8 +275,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         try:
             msg = self.format(record)
             try:
-                self._open_lockfile()
-
                 self._do_lock()
 
                 try:
@@ -281,12 +288,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
             finally:
                 self._do_unlock()
-                if self.stream_lock:
-                    unlock(self.stream_lock)
-                    self.stream_lock.close()
-                    self.stream_lock = None
-
-
         except Exception:
             self.handleError(record)
 
@@ -307,6 +308,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         return
 
     def _do_lock(self):
+        self._open_lockfile()
         if self.stream_lock:
             lock(self.stream_lock, LOCK_EX)
         else:
@@ -315,6 +317,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     def _do_unlock(self):
         if self.stream_lock:
             unlock(self.stream_lock)
+            self.stream_lock.close()
+            self.stream_lock = None
         else:
             self._console_log("No self.stream_lock to unlock", stack=True)
 
