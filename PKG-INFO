@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: concurrent-log-handler
-Version: 0.9.9
+Version: 0.9.10
 Summary:  RotatingFileHandler replacement with concurrency, gzip and Windows support
 Home-page: https://github.com/Preston-Landers/concurrent_log_handler
 Author: Preston Landers
@@ -147,6 +147,9 @@ Description:
         
         Change Log
         ==========
+        - 0.9.10: Fix inadvertent lock sharing when forking
+           Thanks to @eriktews for this fix
+
         - 0.9.9: Fix Python 2 compatibility broken in last release
 
         - 0.9.8: Bug fixes and permission features

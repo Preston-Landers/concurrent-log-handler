@@ -90,6 +90,9 @@ restart your app service so that all processes are using the same settings at th
 
 ## Change Log ##
 
+- 0.9.10: Fix inadvertent lock sharing when forking
+   Thanks to @eriktews for this fix
+
 - 0.9.9: Fix Python 2 compatibility broken in last release 
 
 - 0.9.8: Bug fixes and permission features
