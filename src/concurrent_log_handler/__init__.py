@@ -56,6 +56,7 @@ import os
 import sys
 import time
 import traceback
+from contextlib import contextmanager
 from logging import LogRecord
 from logging.handlers import BaseRotatingHandler
 
@@ -119,7 +120,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     """
 
     def __init__(self, filename, mode='a', maxBytes=0, backupCount=0,
-                 encoding=None, debug=False, delay=0, use_gzip=False, owner=None, chmod=None):
+                 encoding=None, debug=False, delay=0, use_gzip=False,
+                 owner=None, chmod=None, umask=None):
         """
         Open the specified file and use it as the stream for logging.
 
@@ -133,6 +135,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         :param use_gzip: automatically gzip rotated logs if available.
         :param owner: 2 element sequence with (user owner, group owner) of log files.  (Unix only)
         :param chmod: permission of log files.  (Unix only)
+        :param umask: umask settings to temporarily make when creating log files. (Unix only, alternative to chmod)
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
@@ -163,6 +166,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.stream_lock = None
         self.owner = owner
         self.chmod = chmod
+        self.umask = umask
         self._set_uid = None
         self._set_gid = None
         self.use_gzip = True if gzip and use_gzip else False
@@ -212,7 +216,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         lock_file = self.lockFilename
         self._console_log(
             "concurrent-log-handler %s opening %s" % (hash(self), lock_file), stack=False)
-        self.stream_lock = open(lock_file, "wb", buffering=0)
+
+        with self._alter_umask():
+            self.stream_lock = open(lock_file, "wb", buffering=0)
 
         self._do_chown_and_chmod(lock_file)
 
@@ -230,14 +236,30 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         """
         if mode is None:
             mode = self.mode
-        if self.encoding is None:
-            stream = open(self.baseFilename, mode)
-        else:
-            stream = codecs.open(self.baseFilename, mode, self.encoding)
+
+        with self._alter_umask():
+            if self.encoding is None:
+                stream = open(self.baseFilename, mode)
+            else:
+                stream = codecs.open(self.baseFilename, mode, self.encoding)
 
         self._do_chown_and_chmod(self.baseFilename)
 
         return stream
+
+
+    @contextmanager
+    def _alter_umask(self):
+        """Temporarily alter umask to custom setting, if applicable"""
+        if self.umask is None:
+            yield # nothing to do
+        else:
+            prev_umask = os.umask(self.umask)
+            try:
+                yield
+            finally:
+                os.umask(prev_umask)
+
 
     def _close(self):
         """ Close file stream.  Unlike close(), we don't tear anything down, we
