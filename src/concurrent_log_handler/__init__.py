@@ -135,7 +135,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         :param use_gzip: automatically gzip rotated logs if available.
         :param owner: 2 element sequence with (user owner, group owner) of log files.  (Unix only)
         :param chmod: permission of log files.  (Unix only)
-        :param umask: umask settings to temporarily make when creating log files. (Unix only, alternative to chmod)
+        :param umask: umask settings to temporarily make when creating log files.
+            This is an alternative to chmod. It is mainly for Unix systems but
+            can also be used on Windows. The Windows security model is more complex
+            and this is not the same as changing access control entries.
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
