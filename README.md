@@ -90,6 +90,9 @@ restart your app service so that all processes are using the same settings at th
 
 ## Change Log ##
 
+- 0.9.12: Add umask option (thanks to @blakehilliard) 
+   This adds the ability to control the permission flags when creating log files.
+
 - 0.9.11: Fix issues with gzip compression option (use buffering)
 
 - 0.9.10: Fix inadvertent lock sharing when forking
@@ -136,3 +139,6 @@ https://github.com/wcooley
 
 https://github.com/greenfrog82
 
+https://github.com/blakehilliard
+
+https://github.com/eriktews

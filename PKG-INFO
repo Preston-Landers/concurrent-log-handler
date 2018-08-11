@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: concurrent-log-handler
-Version: 0.9.11
+Version: 0.9.12
 Summary:  RotatingFileHandler replacement with concurrency, gzip and Windows support
 Home-page: https://github.com/Preston-Landers/concurrent_log_handler
 Author: Preston Landers
@@ -147,6 +147,9 @@ Description:
         
         Change Log
         ==========
+        - 0.9.12: Add umask option (thanks to @blakehilliard)
+           This adds the ability to control the permission flags when creating log files.
+
         - 0.9.11: Fix issues with gzip compression option (use buffering)
 
         - 0.9.10: Fix inadvertent lock sharing when forking

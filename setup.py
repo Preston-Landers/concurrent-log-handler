@@ -142,6 +142,9 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
+- 0.9.12: Add umask option (thanks to @blakehilliard)
+  This adds the ability to control the permission flags when creating log files.
+
 - 0.9.11: Fix issues with gzip compression option (use buffering)
 
 - 0.9.10: Fix inadvertent lock sharing when forking
@@ -277,7 +280,7 @@ use_setuptools()
 
 from setuptools import setup
 
-VERSION = "0.9.11"
+VERSION = "0.9.12"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging
