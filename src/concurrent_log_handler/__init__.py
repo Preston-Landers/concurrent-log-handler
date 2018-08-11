@@ -247,19 +247,17 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         return stream
 
-
     @contextmanager
     def _alter_umask(self):
         """Temporarily alter umask to custom setting, if applicable"""
         if self.umask is None:
-            yield # nothing to do
+            yield  # nothing to do
         else:
             prev_umask = os.umask(self.umask)
             try:
                 yield
             finally:
                 os.umask(prev_umask)
-
 
     def _close(self):
         """ Close file stream.  Unlike close(), we don't tear anything down, we
