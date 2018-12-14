@@ -167,6 +167,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         """
         self.stream = None
         self.stream_lock = None
+        # Where to write debug messages and fatal errors...
+        self._console = sys.stderr  # TODO: configurable?
         self.owner = owner
         self.chmod = chmod
         self.umask = umask
@@ -265,27 +267,48 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     def _close(self):
         """ Close file stream.  Unlike close(), we don't tear anything down, we
         expect the log to be re-opened after rotation."""
-
-        if self.stream:
-            try:
-                if not self.stream.closed:
-                    # Flushing probably isn't technically necessary, but it feels right
-                    self.stream.flush()
-                    self.stream.close()
-            finally:
-                self.stream = None
+        try:
+            if self.stream and not self.stream.closed:
+                # Flushing probably isn't technically necessary, but it feels right
+                self.stream.flush()
+                self.stream.close()
+        except Exception as e:
+            self._console_log("Failure in _close: " + str(e), stack=True)
+        finally:
+            self.stream = None
 
     def _console_log(self, msg, stack=False):
         if not self._debug:
             return
         import threading
-        tid = threading.current_thread().name
-        pid = os.getpid()
+        try:
+            tid = threading.current_thread().name
+        except:
+            tid = '<unknown thread>'
+        try:
+            pid = os.getpid()
+        except:
+            pid = '<unknown pid>'
         stack_str = ''
         if stack:
-            stack_str = ":\n" + "".join(traceback.format_stack())
-        asctime = time.asctime()
-        print("[%s %s %s] %s%s" % (tid, pid, asctime, msg, stack_str,))
+            try:
+                stack_str = ":\n" + "".join(traceback.format_stack())
+            except:
+                stack_str = ' <no stack?>'
+        try:
+            asctime = time.asctime()
+        except:
+            asctime = '<time?>'
+        msg = "[%s %s %s] %s%s" % (tid, pid, asctime, msg, stack_str,)
+        self._console_write(msg)
+
+    def _console_write(self, msg):
+        try:
+            self._console.write(msg)
+            self._console.write("\n")
+            self._console.flush()
+        except:
+            pass
 
     def emit(self, record):
         """
