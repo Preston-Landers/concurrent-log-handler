@@ -56,6 +56,7 @@ import os
 import sys
 import time
 import traceback
+import warnings
 from contextlib import contextmanager
 from logging import LogRecord
 from logging.handlers import BaseRotatingHandler
@@ -120,7 +121,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     """
 
     def __init__(self, filename, mode='a', maxBytes=0, backupCount=0,
-                 encoding=None, debug=False, delay=0, use_gzip=False,
+                 encoding=None, debug=False, delay=None, use_gzip=False,
                  owner=None, chmod=None, umask=None):
         """
         Open the specified file and use it as the stream for logging.
@@ -131,7 +132,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         :param backupCount: number of rotated files to keep before deleting.
         :param encoding: text encoding for logfile
         :param debug: add extra debug statements to this class (for development)
-        :param delay: see note below
+        :param delay: DEPRECATED: value is ignored
         :param use_gzip: automatically gzip rotated logs if available.
         :param owner: 2 element sequence with (user owner, group owner) of log files.  (Unix only)
         :param chmod: permission of log files.  (Unix only)
@@ -173,7 +174,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._set_uid = None
         self._set_gid = None
         self.use_gzip = True if gzip and use_gzip else False
-        self.delay = delay
         self._rotateFailed = False
         self.maxBytes = maxBytes
         self.backupCount = backupCount
@@ -182,9 +182,17 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.use_gzip = True if gzip and use_gzip else False
         self.gzip_buffer = 8096
 
-        # Absolute file name handling done by FileHandler since Python 2.5
+        if delay is not None:
+            warnings.warn(
+                'parameter delay is now ignored and impied as True, '
+                'please remove from your config.',
+                DeprecationWarning)
+
+        # Construct the handler with the given arguments in "delayed" mode
+        # because we will handle opening the file as needed. File name
+        # handling is done by FileHandler since Python 2.5.
         super(ConcurrentRotatingFileHandler, self).__init__(
-            filename, mode, encoding=encoding, delay=delay)
+            filename, mode, encoding=encoding, delay=True)
 
         if not hasattr(self, "terminator"):
             self.terminator = "\n"
@@ -366,72 +374,65 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self.stream = self.do_open("w")
             self._close()
             return
+
+        # Determine if we can rename the log file or not. Windows refuses to
+        # rename an open file, Unix is inode base so it doesn't care.
+
+        # Attempt to rename logfile to tempname:
+        # There is a slight race-condition here, but it seems unavoidable
+        tmpname = None
+        while not tmpname or os.path.exists(tmpname):
+            tmpname = "%s.rotate.%08d" % (self.baseFilename, randbits(64))
         try:
-            # Determine if we can rename the log file or not. Windows refuses to
-            # rename an open file, Unix is inode base so it doesn't care.
-
-            # Attempt to rename logfile to tempname:
-            # There is a slight race-condition here, but it seems unavoidable
-            tmpname = None
-            while not tmpname or os.path.exists(tmpname):
-                tmpname = "%s.rotate.%08d" % (self.baseFilename, randbits(64))
-            try:
-                # Do a rename test to determine if we can successfully rename the log file
-                os.rename(self.baseFilename, tmpname)
-
-                if self.use_gzip:
-                    self.do_gzip(tmpname)
-            except (IOError, OSError):
-                exc_value = sys.exc_info()[1]
-                self._console_log(
-                    "rename failed.  File in use? exception=%s" % (exc_value,), stack=True)
-                return
-
-            gzip_ext = ''
-            if self.use_gzip:
-                gzip_ext = '.gz'
-
-            def do_rename(source_fn, dest_fn):
-                self._console_log("Rename %s -> %s" % (source_fn, dest_fn + gzip_ext))
-                if os.path.exists(dest_fn):
-                    os.remove(dest_fn)
-                if os.path.exists(dest_fn + gzip_ext):
-                    os.remove(dest_fn + gzip_ext)
-                source_gzip = source_fn + gzip_ext
-                if os.path.exists(source_gzip):
-                    os.rename(source_gzip, dest_fn + gzip_ext)
-                elif os.path.exists(source_fn):
-                    os.rename(source_fn, dest_fn)
-
-            # Q: Is there some way to protect this code from a KeyboardInterrupt?
-            # This isn't necessarily a data loss issue, but it certainly does
-            # break the rotation process during stress testing.
-
-            # There is currently no mechanism in place to handle the situation
-            # where one of these log files cannot be renamed. (Example, user
-            # opens "logfile.3" in notepad); we could test rename each file, but
-            # nobody's complained about this being an issue; so the additional
-            # code complexity isn't warranted.
-            for i in range(self.backupCount - 1, 0, -1):
-                sfn = "%s.%d" % (self.baseFilename, i)
-                dfn = "%s.%d" % (self.baseFilename, i + 1)
-                if os.path.exists(sfn + gzip_ext):
-                    do_rename(sfn, dfn)
-            dfn = self.baseFilename + ".1"
-            do_rename(tmpname, dfn)
+            # Do a rename test to determine if we can successfully rename the log file
+            os.rename(self.baseFilename, tmpname)
 
             if self.use_gzip:
-                logFilename = self.baseFilename + ".1.gz"
-                self._do_chown_and_chmod(logFilename)
+                self.do_gzip(tmpname)
+        except (IOError, OSError):
+            exc_value = sys.exc_info()[1]
+            self._console_log(
+                "rename failed.  File in use? exception=%s" % (exc_value,), stack=True)
+            return
 
-            self._console_log("Rotation completed")
-        finally:
-            # Re-open the output stream, but if "delay" is enabled then wait
-            # until the next emit() call. This could reduce rename contention in
-            # some usage patterns.
-            if not self.delay:
-                # self.stream = self._open()
-                pass
+        gzip_ext = ''
+        if self.use_gzip:
+            gzip_ext = '.gz'
+
+        def do_rename(source_fn, dest_fn):
+            self._console_log("Rename %s -> %s" % (source_fn, dest_fn + gzip_ext))
+            if os.path.exists(dest_fn):
+                os.remove(dest_fn)
+            if os.path.exists(dest_fn + gzip_ext):
+                os.remove(dest_fn + gzip_ext)
+            source_gzip = source_fn + gzip_ext
+            if os.path.exists(source_gzip):
+                os.rename(source_gzip, dest_fn + gzip_ext)
+            elif os.path.exists(source_fn):
+                os.rename(source_fn, dest_fn)
+
+        # Q: Is there some way to protect this code from a KeyboardInterrupt?
+        # This isn't necessarily a data loss issue, but it certainly does
+        # break the rotation process during stress testing.
+
+        # There is currently no mechanism in place to handle the situation
+        # where one of these log files cannot be renamed. (Example, user
+        # opens "logfile.3" in notepad); we could test rename each file, but
+        # nobody's complained about this being an issue; so the additional
+        # code complexity isn't warranted.
+        for i in range(self.backupCount - 1, 0, -1):
+            sfn = "%s.%d" % (self.baseFilename, i)
+            dfn = "%s.%d" % (self.baseFilename, i + 1)
+            if os.path.exists(sfn + gzip_ext):
+                do_rename(sfn, dfn)
+        dfn = self.baseFilename + ".1"
+        do_rename(tmpname, dfn)
+
+        if self.use_gzip:
+            logFilename = self.baseFilename + ".1.gz"
+            self._do_chown_and_chmod(logFilename)
+
+        self._console_log("Rotation completed")
 
     def shouldRollover(self, record):
         """
