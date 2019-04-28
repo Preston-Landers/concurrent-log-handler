@@ -202,6 +202,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._set_gid = grp.getgrnam(self.owner[1]).gr_gid
 
         self.lockFilename = self.getLockFilename()
+        self.is_locked = False
 
     def getLockFilename(self):
         """
@@ -342,13 +343,24 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     def _do_lock(self):
         self._open_lockfile()
         if self.stream_lock:
-            lock(self.stream_lock, LOCK_EX)
+            for i in range(10):
+                # noinspection PyBroadException
+                try:
+                    lock(self.stream_lock, LOCK_EX)
+                    self.is_locked = True
+                    break
+                except Exception:
+                    continue
+            else:
+                raise RuntimeError("Cannot acquire lock after 10 attempts")
         else:
             self._console_log("No self.stream_lock to lock", stack=True)
 
     def _do_unlock(self):
         if self.stream_lock:
-            unlock(self.stream_lock)
+            if self.is_locked:
+                unlock(self.stream_lock)
+                self.is_locked = False
             self.stream_lock.close()
             self.stream_lock = None
         else:
