@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: concurrent-log-handler
-Version: 0.9.12
+Version: 0.9.13
 Summary:  RotatingFileHandler replacement with concurrency, gzip and Windows support
 Home-page: https://github.com/Preston-Landers/concurrent_log_handler
 Author: Preston Landers
@@ -147,6 +147,10 @@ Description:
         
         Change Log
         ==========
+        - 0.9.13: Fixes Crashes with ValueError: I/O operation on closed file (issue #16)
+          Also should fix issue #13 with crashes related to Windows file locking.
+          Big thanks to @terencehonles, @nsmcan, @wkoot, @dismine for doing the hard parts
+
         - 0.9.12: Add umask option (thanks to @blakehilliard)
            This adds the ability to control the permission flags when creating log files.
 

@@ -142,6 +142,11 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
+
+- 0.9.13: Fixes Crashes with ValueError: I/O operation on closed file (issue #16)
+  Also should fix issue #13 with crashes related to Windows file locking.
+  Big thanks to @terencehonles, @nsmcan, @wkoot, @dismine for doing the hard parts
+
 - 0.9.12: Add umask option (thanks to @blakehilliard)
   This adds the ability to control the permission flags when creating log files.
 
@@ -280,7 +285,7 @@ use_setuptools()
 
 from setuptools import setup
 
-VERSION = "0.9.12"
+VERSION = "0.9.13"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging
