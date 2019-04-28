@@ -297,7 +297,7 @@ License :: OSI Approved :: Apache Software License
 """
 doc = __doc__.splitlines()
 
-install_requires = []
+install_requires = ['portalocker>=1.4.0']
 if "win" in sys.platform:
     try:
         import win32file
