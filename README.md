@@ -90,6 +90,10 @@ restart your app service so that all processes are using the same settings at th
 
 ## Change Log ##
 
+- 0.9.14: Fix writing LF line endings on Windows when encoding is specified.
+  Added newline and terminator kwargs to allow customizing line ending behavior.
+  Thanks to @vashek
+
 - 0.9.13: Fixes Crashes with ValueError: I/O operation on closed file (issue #16)
   Also should fix issue #13 with crashes related to Windows file locking.
   Big thanks to @terencehonles, @nsmcan, @wkoot, @dismine for doing the hard parts

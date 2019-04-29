@@ -90,7 +90,7 @@ try:
 except ImportError:
     gzip = None
 
-__version__ = '0.9.13'
+__version__ = '0.9.14'
 __author__ = "Preston Landers <planders@gmail.com>"
 # __author__ = "Lowell Alleman"
 __all__ = [
