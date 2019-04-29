@@ -52,6 +52,7 @@ This module supports Python 2.6 and later.
 
 """
 
+import io
 import os
 import sys
 import time
@@ -62,11 +63,6 @@ from logging import LogRecord
 from logging.handlers import BaseRotatingHandler
 
 from portalocker import LOCK_EX, lock, unlock
-
-try:
-    import codecs
-except ImportError:
-    codecs = None
 
 try:
     import pwd
@@ -122,7 +118,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
     def __init__(self, filename, mode='a', maxBytes=0, backupCount=0,
                  encoding=None, debug=False, delay=None, use_gzip=False,
-                 owner=None, chmod=None, umask=None):
+                 owner=None, chmod=None, umask=None, newline=None, terminator="\n"):
         """
         Open the specified file and use it as the stream for logging.
 
@@ -140,6 +136,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             This is an alternative to chmod. It is mainly for Unix systems but
             can also be used on Windows. The Windows security model is more complex
             and this is not the same as changing access control entries.
+        :param newline: None (default): use CRLF on Windows, LF on Unix. Set to '' for
+        no translation, in which case the 'terminator' argument determines the line ending.
+        :param terminator: set to '\r\n' along with newline='' to force Windows style
+        newlines regardless of OS platform.
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
@@ -177,6 +177,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._rotateFailed = False
         self.maxBytes = maxBytes
         self.backupCount = backupCount
+        self.newline = newline
 
         self._debug = debug
         self.use_gzip = True if gzip and use_gzip else False
@@ -194,8 +195,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         super(ConcurrentRotatingFileHandler, self).__init__(
             filename, mode, encoding=encoding, delay=True)
 
-        if not hasattr(self, "terminator"):
-            self.terminator = "\n"
+        self.terminator = terminator or "\n"
 
         if owner and os.chown and pwd and grp:
             self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid
@@ -250,10 +250,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             mode = self.mode
 
         with self._alter_umask():
-            if self.encoding is None:
-                stream = open(self.baseFilename, mode)
-            else:
-                stream = codecs.open(self.baseFilename, mode, self.encoding)
+            # noinspection PyArgumentList
+            stream = io.open(
+                self.baseFilename, mode=mode, encoding=self.encoding, newline=self.newline)
 
         self._do_chown_and_chmod(self.baseFilename)
 
