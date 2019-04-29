@@ -250,11 +250,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             mode = self.mode
 
         with self._alter_umask():
-            if self.encoding is None:
-                stream = open(self.baseFilename, mode)
-            else:
-                stream = codecs.open(self.baseFilename, mode, self.encoding)
-
+            stream = open(self.baseFilename, mode, encoding=self.encoding)
         self._do_chown_and_chmod(self.baseFilename)
 
         return stream
