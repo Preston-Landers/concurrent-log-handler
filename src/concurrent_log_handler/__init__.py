@@ -97,6 +97,10 @@ __all__ = [
     "ConcurrentRotatingFileHandler",
 ]
 
+PY2 = False
+if sys.version_info[0] == 2:
+    PY2 = True
+
 
 # Workaround for handleError() in Python 2.7+ where record is written to stderr
 # TODO: unused - probably can delete now.
@@ -116,9 +120,12 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     exceed the given size.
     """
 
-    def __init__(self, filename, mode='a', maxBytes=0, backupCount=0,
-                 encoding=None, debug=False, delay=None, use_gzip=False,
-                 owner=None, chmod=None, umask=None, newline=None, terminator="\n"):
+    def __init__(
+            self, filename, mode='a', maxBytes=0, backupCount=0,
+            encoding=None, debug=False, delay=None, use_gzip=False,
+            owner=None, chmod=None, umask=None, newline=None, terminator="\n",
+            unicode_error_policy='ignore',
+    ):
         """
         Open the specified file and use it as the stream for logging.
 
@@ -140,6 +147,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         no translation, in which case the 'terminator' argument determines the line ending.
         :param terminator: set to '\r\n' along with newline='' to force Windows style
         newlines regardless of OS platform.
+        :param unicode_error_policy: should be one of 'ignore', 'replace', 'strict'
+        Only applies to Python 2, if we can't convert the log message to unicode.
+        strict will cause an error to be raised on logging!
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
@@ -183,9 +193,14 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.use_gzip = True if gzip and use_gzip else False
         self.gzip_buffer = 8096
 
+        if unicode_error_policy not in ('ignore', 'replace', 'strict'):
+            raise ValueError(
+                "Invalid unicode_error_policy for concurrent_log_handler: must be ignore, replace, or strict")
+        self.unicode_error_policy = unicode_error_policy
+
         if delay is not None:
             warnings.warn(
-                'parameter delay is now ignored and impied as True, '
+                'parameter delay is now ignored and implied as True, '
                 'please remove from your config.',
                 DeprecationWarning)
 
@@ -320,6 +335,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
             finally:
                 self._do_unlock()
+        except (KeyboardInterrupt, SystemExit):
+            raise
         except Exception:
             self.handleError(record)
 
@@ -332,16 +349,42 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         This assumes emit() has already locked the file."""
         self.stream = self.do_open()
         stream = self.stream
-        stream.write(msg)
-        if self.terminator:
-            stream.write(self.terminator)
+
+        if PY2:
+            self.do_write_py2(msg)
+        else:
+            stream.write(msg + self.terminator)
+
         stream.flush()
         self._close()
         return
 
+    # noinspection PyCompatibility
+    def do_write_py2(self, msg):
+        stream = self.stream
+        term = self.terminator
+        policy = self.unicode_error_policy
+
+        encoding = getattr(stream, 'encoding', None)
+
+        # as far as I can tell, this should always be set from io.open, but just in case...
+        if not encoding:
+            if not self.encoding:
+                self._console_log("Warning, unable to determine encoding of logging stream; assuming utf-8")
+            encoding = self.encoding or 'utf-8'
+
+        if not isinstance(msg, unicode):
+            msg = unicode(msg, encoding, policy)
+
+        # Add in the terminator.
+        if not isinstance(term, unicode):
+            term = unicode(term, encoding, policy)
+        msg = msg + term
+        stream.write(msg)
+
     def _do_lock(self):
         self._open_lockfile()
-        if self.stream_lock:
+        if self.stream_lock:  # and not self.is_locked
             for i in range(10):
                 # noinspection PyBroadException
                 try:
