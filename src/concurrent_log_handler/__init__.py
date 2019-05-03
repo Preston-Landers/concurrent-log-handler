@@ -383,8 +383,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         stream.write(msg)
 
     def _do_lock(self):
+        if self.is_locked:
+            return   # already locked... recursive?
         self._open_lockfile()
-        if self.stream_lock:  # and not self.is_locked
+        if self.stream_lock:
             for i in range(10):
                 # noinspection PyBroadException
                 try:
