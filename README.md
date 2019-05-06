@@ -90,6 +90,12 @@ restart your app service so that all processes are using the same settings at th
 
 ## Change Log ##
 
+- 0.9.15: Fix bug from last version on Python 2. (Issue #21) Thanks @condontrevor
+  Also, on Python 2 and 3, apply unicode_error_policy (default: ignore) to convert 
+  a log message to the output stream's encoding. I.e., by default it will filter 
+  out (remove) any characters in a log message which cannot be converted to the 
+  output logfile's encoding.
+
 - 0.9.14: Fix writing LF line endings on Windows when encoding is specified.
   Added newline and terminator kwargs to allow customizing line ending behavior.
   Thanks to @vashek
