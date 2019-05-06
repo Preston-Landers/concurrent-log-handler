@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
+# vim: fileencoding=utf-8 tabstop=4 expandtab shiftwidth=4
+#
 # Copyright 2013 Lowell Alleman
 #
 #   Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -148,8 +152,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         :param terminator: set to '\r\n' along with newline='' to force Windows style
         newlines regardless of OS platform.
         :param unicode_error_policy: should be one of 'ignore', 'replace', 'strict'
-        Only applies to Python 2, if we can't convert the log message to unicode.
-        strict will cause an error to be raised on logging!
+        Determines what happens when a message is written to the log that the stream encoding
+        doesn't support. Default is to ignore, i.e., drop the unusable characters.
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
@@ -194,8 +198,11 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.gzip_buffer = 8096
 
         if unicode_error_policy not in ('ignore', 'replace', 'strict'):
-            raise ValueError(
-                "Invalid unicode_error_policy for concurrent_log_handler: must be ignore, replace, or strict")
+            unicode_error_policy = 'ignore'
+            warnings.warn(
+                "Invalid unicode_error_policy for concurrent_log_handler: "
+                "must be ignore, replace, or strict. Defaulting to ignore.",
+                UserWarning)
         self.unicode_error_policy = unicode_error_policy
 
         if delay is not None:
@@ -353,13 +360,26 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         if PY2:
             self.do_write_py2(msg)
         else:
-            stream.write(msg + self.terminator)
+            msg = msg + self.terminator
+            try:
+                stream.write(msg)
+            except UnicodeError:
+                # Try to emit in a form acceptable to the output encoding
+                # The unicode_error_policy determines whether this is lossy.
+                try:
+                    encoding = getattr(stream, 'encoding', self.encoding or 'us-ascii')
+                    msg_bin = msg.encode(encoding, self.unicode_error_policy)
+                    msg = msg_bin.decode(encoding, self.unicode_error_policy)
+                    stream.write(msg)
+                except UnicodeError:
+                    # self._console_log(str(e))
+                    raise
 
         stream.flush()
         self._close()
         return
 
-    # noinspection PyCompatibility
+    # noinspection PyCompatibility,PyUnresolvedReferences
     def do_write_py2(self, msg):
         stream = self.stream
         term = self.terminator
@@ -370,7 +390,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # as far as I can tell, this should always be set from io.open, but just in case...
         if not encoding:
             if not self.encoding:
-                self._console_log("Warning, unable to determine encoding of logging stream; assuming utf-8")
+                self._console_log(
+                    "Warning, unable to determine encoding of logging stream; assuming utf-8")
             encoding = self.encoding or 'utf-8'
 
         if not isinstance(msg, unicode):
