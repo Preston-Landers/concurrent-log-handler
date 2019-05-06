@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+# -*- coding: utf-8; mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
+# vim: fileencoding=utf-8 tabstop=4 expandtab shiftwidth=4
+
 """ stresstest.py:  A stress-tester for ConcurrentRotatingFileHandler
 
 This utility spawns a bunch of processes that all try to concurrently write to
@@ -13,21 +16,28 @@ multiple threads.
 """
 
 import gzip
+import io
 import os
-import sys
 import string
+import sys
 from optparse import OptionParser
+from random import choice, randint
 from subprocess import Popen
 from time import sleep
-from random import randint, choice
 
 # local lib; for testing
-from concurrent_log_handler import ConcurrentRotatingFileHandler, randbits
+from concurrent_log_handler import ConcurrentRotatingFileHandler, PY2, randbits
 
 __version__ = '$Id$'
 __author__ = 'Lowell Alleman'
 
 ROTATE_COUNT = 5000
+
+# Not all encodings will work here unless you remove some of the Unicode
+# chars in the test string.
+# ENCODING = 'cp1252'
+
+ENCODING = 'utf-8'
 
 
 class RotateLogStressTester:
@@ -43,18 +53,27 @@ class RotateLogStressTester:
         self.logger_delay = logger_delay
         self.log = None
         self.use_gzip = True
+        self.extended_unicode = True
+        if PY2:
+            # hopefully temporary... the problem is with stdout in the tester I think
+            self.extended_unicode = False
 
     def getLogHandler(self, fn):
         """ Override this method if you want to test a different logging handler
         class. """
-        return ConcurrentRotatingFileHandler(
+        rv = ConcurrentRotatingFileHandler(
             fn, 'a', self.rotateSize,
             self.rotateCount, delay=self.logger_delay,
-            encoding='utf-8',
+            encoding=ENCODING,
             debug=self.debug, use_gzip=self.use_gzip)
+
+        # To force LF only linefeeds on Windows: newline='', terminator='\n'
+        # To force CRLF on Unix: newline='', terminator='\r\n'
+
         # To run the test with the standard library's RotatingFileHandler:
         # from logging.handlers import RotatingFileHandler
         # return RotatingFileHandler(fn, 'a', self.rotateSize, self.rotateCount)
+        return rv
 
     def start(self):
         from logging import getLogger, FileHandler, Formatter, DEBUG
@@ -64,7 +83,7 @@ class RotateLogStressTester:
         formatter = Formatter(
             '%(asctime)s [%(process)d:%(threadName)s] %(levelname)-8s %(name)s:  %(message)s')
         # Unique log handler (single file)
-        handler = FileHandler(self.uniquefile, "w")
+        handler = FileHandler(self.uniquefile, "w", encoding=ENCODING)
         handler.setLevel(DEBUG)
         handler.setFormatter(formatter)
         self.log.addHandler(handler)
@@ -91,6 +110,12 @@ class RotateLogStressTester:
                 "my favorite number is %d", "I am %d years old.", "1 + 1 = %d",
                 "%d/0 = DivideByZero", "blah!  %d thingies!", "8 15 16 23 48 %d",
                 "the worlds largest prime number: %d", "%d happy meals!"]
+        if self.extended_unicode:
+            msgs.extend([
+                "\U0001d122 \U00024b00 Euro: \u20ac%d",
+                "my favorite number is %d ①②③④⑤⑥⑦⑧!"
+            ])
+
         logfuncts = [self.log.debug, self.log.info, self.log.warning, self.log.error]
 
         self.log.info("Starting to write random log message.   Loop=%d", self.writeLoops)
@@ -133,16 +158,16 @@ def iter_logs(iterable, missing_ok=False):
             opener = gzip.open
 
         if os.path.exists(log_path):
-            with opener(log_path, "r") as fh:
+            with opener(log_path, "rb") as fh:
                 for line in fh:
-                    yield decode(line)
+                    yield line
         elif not missing_ok:
             raise ValueError("Missing log file %s" % log_path)
 
 
-def combine_logs(combinedlog, iterable, mode="w"):
+def combine_logs(combinedlog, iterable, mode="wb"):
     """ write all lines (iterable) into a single log file. """
-    fp = open(combinedlog, mode)
+    fp = io.open(combinedlog, mode)
     for chunk in iterable:
         fp.write(chunk)
     fp.close()
@@ -182,7 +207,7 @@ parser = OptionParser(
     description="Stress test the concurrent_log_handler module.")
 parser.add_option(
     "--log-calls", metavar="NUM",
-    action="store", type="int", default=50000,
+    action="store", type="int", default=5000,
     help="Number of logging entries to write to each log file.  "
          "Default is %default")
 parser.add_option(
@@ -269,12 +294,25 @@ class TestManager:
         return True
 
 
-def unified_diff(a, b, out=sys.stdout):
+def unified_diff(a, b, out=sys.stdout, out2=None):
     import difflib
-    ai = open(a).readlines()
-    bi = open(b).readlines()
+    dfile = None
+    if out2:
+        dfile = io.open(out2, "w", encoding=ENCODING)
+    ai = io.open(a, "r", encoding=ENCODING).readlines()
+    bi = io.open(b, "r", encoding=ENCODING).readlines()
     for line in difflib.unified_diff(ai, bi, a, b):
-        out.write(line)
+        # if PY2:
+        #     line = line.encode(ENCODING)
+        if PY2:
+            if not isinstance(line, unicode):
+                line = unicode(line, ENCODING)
+            line_out = line.encode(out.encoding, 'ignore').decode(out.encoding)
+            out.write(line_out)
+        else:
+            out.write(line)
+        if dfile:
+            dfile.write(line)
 
 
 def main_runner(args):
@@ -329,11 +367,7 @@ def main_runner(args):
     # Combine all of the log files...
     client_files = [child.clientfile for child in manager.tests]
 
-    if False:
-        def sort_em(iterable):
-            return iterable
-    else:
-        sort_em = sorted
+    sort_em = sorted
 
     print("Writing out combined client logs...")
     combine_logs(client_combo, sort_em(iter_logs(client_files)))
@@ -347,11 +381,12 @@ def main_runner(args):
 
     print("Running internal diff:  "
           "(If the next line is 'end of diff', then the stress test passed!)")
-    unified_diff(client_combo, shared_combo)
+    diff_file = os.path.join(options.path, "diff.patch")
+    unified_diff(client_combo, shared_combo, sys.stdout, diff_file)
     print("   --- end of diff ----")
 
 
-def decode(thing, encoding="utf-8"):
+def decode(thing, encoding=ENCODING):
     if isinstance(thing, bytes):
         return thing.decode(encoding=encoding)
     return thing
