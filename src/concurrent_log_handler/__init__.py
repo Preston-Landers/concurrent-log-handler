@@ -205,7 +205,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 UserWarning)
         self.unicode_error_policy = unicode_error_policy
 
-        if delay is not None:
+        if delay not in (None, True):
             warnings.warn(
                 'parameter delay is now ignored and implied as True, '
                 'please remove from your config.',
