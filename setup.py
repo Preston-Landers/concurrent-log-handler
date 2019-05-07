@@ -142,6 +142,9 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
+- 0.9.16: Fix publishing issue with incorrect code included in the wheel
+  Affects Python 2 mainly - see Issue #21
+
 - 0.9.15: Fix bug from last version on Python 2. (Issue #21) Thanks @condontrevor
   Also, on Python 2 and 3, apply unicode_error_policy (default: ignore) to convert
   a log message to the output stream's encoding. I.e., by default it will filter
@@ -294,7 +297,7 @@ use_setuptools()
 
 from setuptools import setup
 
-VERSION = "0.9.15"
+VERSION = "0.9.16"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging
