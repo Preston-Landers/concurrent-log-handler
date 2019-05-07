@@ -287,9 +287,9 @@ To-do
 
 import sys
 
-extra = {}
-if sys.version_info >= (3, 0):
-    extra['use_2to3'] = True
+extra = {
+    'use_2to3': False
+}
 
 from ez_setup import use_setuptools
 
@@ -351,4 +351,4 @@ setup(name='concurrent-log-handler',
       )
 
 # Development build:
-# python setup.py clean build sdist bdist_wheel
+# python setup.py clean --all build sdist bdist_wheel
