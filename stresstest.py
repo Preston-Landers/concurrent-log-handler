@@ -37,6 +37,9 @@ ROTATE_COUNT = 5000
 # chars in the test string.
 # ENCODING = 'cp1252'
 
+# There are some issues with the test program in utf-16 but I think the logging itself works...?
+# ENCODING = 'utf-16'
+
 ENCODING = 'utf-8'
 
 
@@ -54,7 +57,7 @@ class RotateLogStressTester:
         self.log = None
         self.use_gzip = True
         self.extended_unicode = True
-        if PY2:
+        if PY2 and ENCODING != 'utf-8':
             # hopefully temporary... the problem is with stdout in the tester I think
             self.extended_unicode = False
 
@@ -112,8 +115,8 @@ class RotateLogStressTester:
                 "the worlds largest prime number: %d", "%d happy meals!"]
         if self.extended_unicode:
             msgs.extend([
-                "\U0001d122 \U00024b00 Euro: \u20ac%d",
-                "my favorite number is %d ①②③④⑤⑥⑦⑧!"
+                u"\U0001d122 \U00024b00 Euro: \u20ac%d",
+                u"my favorite number is %d ①②③④⑤⑥⑦⑧!"
             ])
 
         logfuncts = [self.log.debug, self.log.info, self.log.warning, self.log.error]
@@ -168,6 +171,9 @@ def iter_logs(iterable, missing_ok=False):
 def combine_logs(combinedlog, iterable, mode="wb"):
     """ write all lines (iterable) into a single log file. """
     fp = io.open(combinedlog, mode)
+    if ENCODING == 'utf-16':
+        import codecs
+        fp.write(codecs.BOM_UTF16)
     for chunk in iterable:
         fp.write(chunk)
     fp.close()
@@ -255,8 +261,8 @@ class TestManager:
     def __init__(self, output_path):
         self.output_path = output_path
         self.tests = []
-        self.client_stdout = open(os.path.join(output_path, "client_stdout.txt"), "a")
-        self.client_stderr = open(os.path.join(output_path, "client_stderr.txt"), "a")
+        self.client_stdout = io.open(os.path.join(output_path, "client_stdout.txt"), "a", encoding=ENCODING)
+        self.client_stderr = io.open(os.path.join(output_path, "client_stderr.txt"), "a", encoding=ENCODING)
 
     def launchPopen(self, *args, **kwargs):
         if "stdout" not in kwargs:
