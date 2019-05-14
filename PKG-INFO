@@ -9,30 +9,40 @@ License: http://www.apache.org/licenses/LICENSE-2.0
 Description: 
         Overview
         ========
+
         This package provides an additional log handler for Python's standard logging
         package (PEP 282). This handler will write log events to a log file which is
         rotated when the log file reaches a certain size.  Multiple processes can
         safely write to the same log file concurrently. Rotated logs can be gzipped
-        if enabled.  Both Windows and POSIX systems are supported. An optional threaded
+        if desired. Both Windows and POSIX systems are supported.  An optional threaded
         queue logging handler is provided to perform logging in the background.
 
-        This is a fork from Lowell Alleman's version with updates for Windows and
-        recent versions of Python. It should be a drop-in replacement for users
-        of the old version, except for changing the package name from
-        `cloghandler` to `concurrent_log_handler`.
+        This is a fork of Lowell Alleman's ConcurrentLogHandler 0.9.1 which fixes
+        a hanging/deadlocking problem. See this:
 
-        Note: PyWin32 is required on Windows, but can't be installed as an
-        automatic dependency because it's not currently installable through pip.
-        
+        https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
+
+        Summary of other changes:
+
+        * Renamed package to `concurrent_log_handler`
+        * Provide `use_gzip` option to compress rotated logs
+        * Support for Windows
+        * Uses file locking to ensure exclusive write access
+          Note: file locking is advisory, not a hard lock against external processes
+        * More secure generation of random numbers for temporary filenames
+        * Change the name of the lockfile to have .__ in front of it.
+        * Provide a QueueListener / QueueHandler implementation for
+          handling log events in a background thread. Optional: requires Python 3.
+        * Allow setting owner and mode permissions of rollover file on Unix
+        * Depends on `portalocker` package, which (on Windows only) depends on `PyWin32`
+
         Details
         =======
-        .. _portalocker:  http://code.activestate.com/recipes/65203/
-        
         The ``ConcurrentRotatingFileHandler`` class is a drop-in replacement for
         Python's standard log handler ``RotatingFileHandler``. This module uses file
         locking so that multiple processes can concurrently log to a single file without
         dropping or clobbering log events. This module provides a file rotation scheme
-        like with ``RotatingFileHanler``.  Extra care is taken to ensure that logs
+        like with ``RotatingFileHandler``.  Extra care is taken to ensure that logs
         can be safely rotated before the rotation process is started. (This module works
         around the file rename issue with ``RotatingFileHandler`` on Windows, where a
         rotation failure means that all subsequent log events are dropped).
@@ -46,9 +56,13 @@ Description:
         the same time and writing to the same log file, then *all* of the scripts should
         be using ``ConcurrentRotatingFileHandler``. You should not attempt to mix
         and match ``RotatingFileHandler`` and ``ConcurrentRotatingFileHandler``.
-        
-        This package bundles `portalocker`_ to deal with file locking.
-        On Windows this requires PyWin32 installed separately.
+
+        The file locking is advisory only - it is respected by other Concurrent Log Handler
+        instances, but does not protect against outside processes (or different Python logging
+        file handlers) from writing to a log file in use.
+
+        This package depends on `portalocker` to deal with file locking.
+        On Windows this triggers a dependency on PyWin32.
 
         Installation
         ============
@@ -131,7 +145,8 @@ Description:
             level=NOTSET
             formatter=form01
             args=("rotating.log", "a", 512*1024, 5)
-            
+            kwargs={'backupCount': 5, 'maxBytes': 512*1024}
+
             [formatter_form01]
             format=%(asctime)s %(levelname)s %(message)s
         
@@ -143,8 +158,10 @@ Description:
             logging.config.fileConfig("logging.ini")
             log = logging.getLogger()
             log.info("Here is a very exciting log message, just for you")
-        
-        
+
+        Please note that Python 3.7 and higher accepts keyword arguments (kwargs) in a logging
+        config file, but earlier versions of Python only accept positional args.
+
         Change Log
         ==========
         - 0.9.16: Fix publishing issue with incorrect code included in the wheel
@@ -301,5 +318,6 @@ Classifier: Programming Language :: Python :: 2.7
 Classifier: Programming Language :: Python :: 3
 Classifier: Programming Language :: Python :: 3.5
 Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
 Classifier: Topic :: Software Development :: Libraries :: Python Modules
 Classifier: License :: OSI Approved :: Apache Software License

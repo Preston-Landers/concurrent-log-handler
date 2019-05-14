@@ -15,21 +15,26 @@ https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
 Summary of other changes:
 
 * Renamed package to `concurrent_log_handler`
-* portalocker is inside the package, not a separate module.
 * Provide `use_gzip` option to compress rotated logs
 * Support for Windows
-* Fix for deadlocking problem with recent versions of Python
+* Uses file locking to ensure exclusive write access
+  Note: file locking is advisory, not a hard lock against external processes
 * More secure generation of random numbers for temporary filenames
 * Change the name of the lockfile to have .__ in front of it.
 * Provide a QueueListener / QueueHandler implementation for 
   handling log events in a background thread. Optional: requires Python 3. 
 * Allow setting owner and mode permissions of rollover file on Unix
+* Depends on `portalocker` package, which (on Windows only) depends on `PyWin32`
 
 ## Instructions ##
+
+### Installation ###
 
 You can download and install the package with `pip` using the following command:
 
     pip install concurrent-log-handler
+
+This will also install the portalocker module, which on Windows in turn depends on pywin32.
 
 If installing from source, use the following command:
 
@@ -37,9 +42,10 @@ If installing from source, use the following command:
 
 To build a Python "wheel" for distribution, use the following:
 
-    python setup.py bdist_wheel
+    python setup.py clean --all bdist_wheel
     # Copy the .whl file from under the "dist" folder
 
+### Usage ###
 
 Here is a simple usage example:
 
@@ -59,16 +65,40 @@ Here is a simple usage example:
 
 See also the file `src/example.py` for a configuration and usage example.
 
+### Configuration ###
+
 To use this module from a logging config file, use a handler entry like this:
 
     [handler_hand01]
     class=handlers.ConcurrentRotatingFileHandler
     level=NOTSET
     formatter=form01
-    args=("rotating.log", "a", 512*1024, 5)
+    args=("rotating.log", "a")
+    kwargs={'backupCount': 5, 'maxBytes': 512*1024}
+    
+Please note that Python 3.7 and higher accepts keyword arguments (kwargs) in a logging 
+config file, but earlier versions of Python only accept positional args.
 
 Note: you must have a "import concurrent_log_handler" before you call fileConfig(). For
 more information see http://docs.python.org/lib/logging-config-fileformat.html
+
+### Line Endings ###
+
+By default, the logfile will have line endings appropriate to the platform. On Windows
+the line endings will be CRLF ('\r\n') and on Unix/Mac they will be LF ('\n'). 
+
+It is possible to force another line ending format by using the newline and terminator
+arguments.
+
+The following would force Windows-style CRLF line endings on Unix:
+
+    kwargs={'newline': '', 'terminator': '\r\n'}
+
+The following would force Unix-style LF line endings on Windows:
+
+    kwargs={'newline': '', 'terminator': '\n'}
+
+### Background logging queue ###
 
 To use the background logging queue, you must call this code at some point in your
 app where it sets up logging configuration. Please read the doc string in the
@@ -87,6 +117,32 @@ behavior may result during file rotation.
 This may mean that if you change the logging settings at any point you may need to 
 restart your app service so that all processes are using the same settings at the same time.
 
+
+## Other Usage Details ##
+
+The `ConcurrentRotatingFileHandler` class is a drop-in replacement for
+Python's standard log handler `RotatingFileHandler`. This module uses file
+locking so that multiple processes can concurrently log to a single file without
+dropping or clobbering log events. This module provides a file rotation scheme
+like with `RotatingFileHandler`.  Extra care is taken to ensure that logs
+can be safely rotated before the rotation process is started. (This module works
+around the file rename issue with `RotatingFileHandler` on Windows, where a
+rotation failure means that all subsequent log events are dropped).
+
+This module attempts to preserve log records at all cost. This means that log
+files will grow larger than the specified maximum (rotation) size. So if disk
+space is tight, you may want to stick with `RotatingFileHandler`, which will
+strictly adhere to the maximum file size.
+
+Important:
+
+If you have multiple instances of a script (or multiple scripts) all running at
+the same time and writing to the same log file, then *all* of the scripts should
+be using `ConcurrentRotatingFileHandler`. You should not attempt to mix
+and match `RotatingFileHandler` and `ConcurrentRotatingFileHandler`.
+The file locking is advisory only - it is respected by other Concurrent Log Handler
+instances, but does not protect against outside processes (or different Python logging 
+file handlers) from writing to a log file in use.
 
 ## Change Log ##
 
