@@ -174,6 +174,13 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
+- 0.9.17: Contains the following fixes:
+  * Catch exceptions when unlocking the lock.
+  * Clarify documentation, esp. with use of multiprocessing
+  * In Python 2, don't request/allow portalocker 2.0 which won't work.  (Require portalocker<=1.7.1)
+
+  NOTE: the next release will likely be a 1.0 release candidate.
+
 - 0.9.16: Fix publishing issue with incorrect code included in the wheel
   Affects Python 2 mainly - see Issue #21
 
@@ -329,7 +336,7 @@ use_setuptools()
 
 from setuptools import setup
 
-VERSION = "0.9.16"
+VERSION = "0.9.17"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging
