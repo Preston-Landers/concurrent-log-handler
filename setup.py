@@ -218,7 +218,7 @@ Change Log
 - 0.9.7 / 0.9.6: Fix platform specifier for PyPi
 
 - 0.9.5: Add `use_gzip` option to compress rotated logs. Add an optional threaded
-logging queue handler based on the standard library's `logging.QueueHandler`.
+   logging queue handler based on the standard library's `logging.QueueHandler`.
 
 - 0.9.4: Fix setup.py to not include tests in distribution.
 
@@ -393,6 +393,7 @@ setup(name='concurrent-log-handler',
       license="http://www.apache.org/licenses/LICENSE-2.0",
       description=doc.pop(0),
       long_description="\n".join(doc),
+      long_description_content_type="text/x-rst",
       # platforms=["nt", "posix"],
       install_requires=install_requires,
       keywords="logging, windows, linux, unix, rotate, QueueHandler, QueueListener, portalocker",
