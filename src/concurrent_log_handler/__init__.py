@@ -424,10 +424,12 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     def _do_unlock(self):
         if self.stream_lock:
             if self.is_locked:
-                unlock(self.stream_lock)
-                self.is_locked = False
-            self.stream_lock.close()
-            self.stream_lock = None
+                try:
+                    unlock(self.stream_lock)
+                finally:
+                    self.is_locked = False
+                    self.stream_lock.close()
+                    self.stream_lock = None
         else:
             self._console_log("No self.stream_lock to unlock", stack=True)
 
