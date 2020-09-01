@@ -233,7 +233,7 @@ logging queue handler based on the standard library's `logging.QueueHandler`.
 
 ## Contributors ##
 
-The following folks were kind enough to contribute to this fork:
+The following folks were kind enough to contribute to this fork, in no particular order:
 
 https://github.com/Preston-Landers
 
@@ -246,3 +246,11 @@ https://github.com/greenfrog82
 https://github.com/blakehilliard
 
 https://github.com/eriktews
+
+https://github.com/ZhuYuJin
+
+https://github.com/vashek
+
+https://github.com/terencehonles
+
+https://github.com/fr-ez
