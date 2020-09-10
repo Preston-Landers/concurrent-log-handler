@@ -367,7 +367,8 @@ if IS_PY2:
 else:
     install_requires = ['portalocker>=1.4.0']
 
-if "win" in sys.platform:
+# use windows because mac os has sub string 'win'
+if "windows" in sys.platform:
     try:
         import win32file
     except ImportError:
