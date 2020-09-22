@@ -54,7 +54,10 @@ class AsyncQueueListener(QueueListener):
             self.loop.stop()
             self.loop.close()
 
-        super().stop()
+        self.enqueue_sentinel()
+        # set timeout in case thread occurs deadlock
+        self._thread.join(1)
+        self._thread = None
 
 
 def setup_logging_queues():
@@ -111,7 +114,6 @@ def setup_logging_queues():
         listener.start()
 
     atexit.register(stop_queue_listeners, *queue_listeners)
-    return
 
 
 def stop_queue_listeners(*listeners):
