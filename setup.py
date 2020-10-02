@@ -330,10 +330,6 @@ extra = {
     'use_2to3': False
 }
 
-from ez_setup import use_setuptools
-
-use_setuptools()
-
 from setuptools import setup
 
 VERSION = "0.9.17"
