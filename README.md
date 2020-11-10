@@ -26,6 +26,11 @@ Summary of other changes:
 * Allow setting owner and mode permissions of rollover file on Unix
 * Depends on `portalocker` package, which (on Windows only) depends on `PyWin32`
 
+## Links
+
+* [concurrent-log-handler on Github](https://github.com/Preston-Landers/concurrent-log-handler)
+* [concurrent-log-handler on the Python Package Index (PyPI)](https://pypi.org/project/concurrent-log-handler/)
+
 ## Instructions and Usage
 
 ### Installation
