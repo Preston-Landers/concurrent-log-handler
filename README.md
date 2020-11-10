@@ -176,6 +176,7 @@ instances, but does not protect against outside processes (or different Python l
 file handlers) from writing to a log file in use.
 
 ## Change Log ##
+- 0.9.18: Remove ez_setup from the setup.py
 
 - 0.9.17: Contains the following fixes:
   * Catch exceptions when unlocking the lock.

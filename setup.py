@@ -174,6 +174,8 @@ Example Python code: ``app.py``::
 
 Change Log
 ==========
+- 0.9.18: Remove ez_setup from the setup.py
+
 - 0.9.17: Contains the following fixes:
   * Catch exceptions when unlocking the lock.
   * Clarify documentation, esp. with use of multiprocessing
@@ -332,7 +334,7 @@ extra = {
 
 from setuptools import setup
 
-VERSION = "0.9.17"
+VERSION = "0.9.18"
 classifiers = """\
 Development Status :: 4 - Beta
 Topic :: System :: Logging

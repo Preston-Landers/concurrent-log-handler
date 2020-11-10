@@ -1,6 +1,6 @@
 Metadata-Version: 1.1
 Name: concurrent-log-handler
-Version: 0.9.17
+Version: 0.9.18
 Summary:  RotatingFileHandler replacement with concurrency, gzip and Windows support
 Home-page: https://github.com/Preston-Landers/concurrent_log_handler
 Author: Preston Landers
@@ -195,6 +195,8 @@ Description:
 
         Change Log
         ==========
+        - 0.9.18: Remove ez_setup from the setup.py
+
         - 0.9.17: Contains the following fixes:
           * Catch exceptions when unlocking the lock.
           * Clarify documentation, esp. with use of multiprocessing
