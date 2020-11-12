@@ -59,7 +59,7 @@ if IS_PY2:
 else:
     install_requires = ['portalocker>=1.4.0']
 
-if "win" in sys.platform:
+if sys.platform.startswith("win"):
     try:
         import win32file
     except ImportError:
