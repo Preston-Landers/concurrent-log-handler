@@ -8,6 +8,7 @@
 """RotatingFileHandler replacement with concurrency, gzip and Windows support
 """
 
+import io
 import os
 import sys
 
@@ -19,7 +20,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 about = {}
-with open(os.path.join(
+with io.open(os.path.join(
         here, 'src', 'concurrent_log_handler', '__version__.py'), 'r', encoding='utf-8') as fh:
     exec(fh.read(), about)
 
