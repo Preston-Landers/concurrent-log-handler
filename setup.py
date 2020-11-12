@@ -46,18 +46,12 @@ License :: OSI Approved :: Apache Software License
 
 package_keywords = "logging, windows, linux, unix, rotate, QueueHandler, QueueListener, portalocker"
 
-# noinspection PyBroadException
-try:
-    IS_PY2 = sys.version_info.major == 2
-except Exception:
-    IS_PY2 = True
-
-if IS_PY2:
-    # https://github.com/Preston-Landers/concurrent-log-handler/issues/28
-    # If Python 2, don't allow fulfillment with portalocker 2.0 as it won't work
-    install_requires = ['portalocker<=1.7.1']
-else:
-    install_requires = ['portalocker>=1.4.0']
+# https://github.com/Preston-Landers/concurrent-log-handler/issues/28
+# If Python 2, don't allow fulfillment with portalocker 2.0 as it won't work
+install_requires = [
+    'portalocker<=1.7.1; python_version < "3"',
+    'portalocker>=1.4.0; python_version >= "3"',
+]
 
 if sys.platform.startswith("win"):
     try:
