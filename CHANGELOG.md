@@ -1,5 +1,7 @@
 ## Change Log ##
-- 0.9.19: TODO
+
+- 0.9.19: Fix Python 2 compatibility (again), thanks @buddly27
+    Fix accidental detection of 'darwin' (Mac OS) as Windows in setup.py
 
 - 0.9.18: Remove ez_setup from the setup.py
 
