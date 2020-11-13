@@ -8,6 +8,7 @@
 """RotatingFileHandler replacement with concurrency, gzip and Windows support
 """
 
+import io
 import os
 import sys
 
@@ -19,7 +20,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 about = {}
-with open(os.path.join(
+with io.open(os.path.join(
         here, 'src', 'concurrent_log_handler', '__version__.py'), 'r', encoding='utf-8') as fh:
     exec(fh.read(), about)
 
@@ -45,20 +46,14 @@ License :: OSI Approved :: Apache Software License
 
 package_keywords = "logging, windows, linux, unix, rotate, QueueHandler, QueueListener, portalocker"
 
-# noinspection PyBroadException
-try:
-    IS_PY2 = sys.version_info.major == 2
-except Exception:
-    IS_PY2 = True
+# https://github.com/Preston-Landers/concurrent-log-handler/issues/28
+# If Python 2, don't allow fulfillment with portalocker 2.0 as it won't work
+install_requires = [
+    'portalocker<=1.7.1; python_version < "3"',
+    'portalocker>=1.4.0; python_version >= "3"',
+]
 
-if IS_PY2:
-    # https://github.com/Preston-Landers/concurrent-log-handler/issues/28
-    # If Python 2, don't allow fulfillment with portalocker 2.0 as it won't work
-    install_requires = ['portalocker<=1.7.1']
-else:
-    install_requires = ['portalocker>=1.4.0']
-
-if "win" in sys.platform:
+if sys.platform.startswith("win"):
     try:
         import win32file
     except ImportError:
