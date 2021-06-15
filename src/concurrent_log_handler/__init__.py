@@ -67,6 +67,7 @@ from logging import LogRecord
 from logging.handlers import BaseRotatingHandler
 
 from portalocker import LOCK_EX, lock, unlock
+from concurrent_log_handler.__version__ import __author__, __version__
 
 try:
     import pwd
@@ -94,9 +95,6 @@ try:
 except ImportError:
     gzip = None
 
-__version__ = '0.9.17'
-__author__ = "Preston Landers <planders@gmail.com>"
-# __author__ = "Lowell Alleman"
 __all__ = [
     "ConcurrentRotatingFileHandler",
 ]
