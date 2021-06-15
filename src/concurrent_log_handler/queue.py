@@ -28,25 +28,74 @@ import logging
 import queue
 import sys
 from logging.handlers import QueueHandler, QueueListener
+import asyncio
 
 __author__ = "Preston Landers <planders@gmail.com>"
 
+GLOBAL_LOGGER_HANDLERS = {}
+
+
+# create a thread with a event loop in case of creating a coroutine in self.handle
+class AsyncQueueListener(QueueListener):
+    def __init__(self, queue, *handlers, respect_handler_level=False):
+        super().__init__(queue, *handlers, respect_handler_level=respect_handler_level)
+        self.loop = None
+
+    def _monitor(self):
+        # set event loop in thread
+        self.loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self.loop)
+
+        super()._monitor()
+
+    def stop(self):
+        # stop event loop
+        if self.loop:
+            self.loop.stop()
+            self.loop.close()
+
+        self.enqueue_sentinel()
+        # set timeout in case thread occurs deadlock
+        self._thread.join(1)
+        self._thread = None
+
 
 def setup_logging_queues():
+    global GLOBAL_LOGGER_HANDLERS
+
     if sys.version_info.major < 3:
         raise RuntimeError("This feature requires Python 3.")
 
     queue_listeners = []
 
+    previous_queue_listeners = []
+
     # Q: What about loggers created after this is called?
     # A: if they don't attach their own handlers they should be fine
-    for logger in get_all_logger_names(include_root=True):
-        logger = logging.getLogger(logger)
+    for logger_name in get_all_logger_names(include_root=True):
+        logger = logging.getLogger(logger_name)
         if logger.handlers:
+            ori_handlers = []
+
+            # retrieve original handlers and listeners from GLOBAL_LOGGER_HANDLERS if exist
+            if logger_name in GLOBAL_LOGGER_HANDLERS:
+                # get original handlers
+                ori_handlers.extend(GLOBAL_LOGGER_HANDLERS[logger_name][0])
+                # reset lock in original handlers (solve deadlock)
+                for handler in ori_handlers:
+                    handler.createLock()
+                # recover handlers in logger
+                logger.handlers = []
+                logger.handlers.extend(ori_handlers)
+                # get previous listeners
+                previous_queue_listeners.append(GLOBAL_LOGGER_HANDLERS[logger_name][1])
+            else:
+                ori_handlers.extend(logger.handlers)
+
             log_queue = queue.Queue(-1)  # No limit on size
 
             queue_handler = QueueHandler(log_queue)
-            queue_listener = QueueListener(
+            queue_listener = AsyncQueueListener(
                 log_queue, respect_handler_level=True)
 
             queuify_logger(logger, queue_handler, queue_listener)
@@ -55,11 +104,16 @@ def setup_logging_queues():
             # ))
             queue_listeners.append(queue_listener)
 
+            # save original handlers and current listeners
+            GLOBAL_LOGGER_HANDLERS[logger_name] = [ori_handlers, queue_listener]
+
+    # stop previous listeners at first
+    stop_queue_listeners(*previous_queue_listeners)
+
     for listener in queue_listeners:
         listener.start()
 
     atexit.register(stop_queue_listeners, *queue_listeners)
-    return
 
 
 def stop_queue_listeners(*listeners):

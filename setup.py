@@ -53,7 +53,8 @@ install_requires = [
     'portalocker>=1.4.0; python_version >= "3"',
 ]
 
-if sys.platform.startswith("win"):
+# use windows because mac os has sub string 'win'
+if sys.platform.startswith("windows"):
     try:
         import win32file
     except ImportError:
