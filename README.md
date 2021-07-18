@@ -102,6 +102,9 @@ log.info("Here is a very exciting log message, just for you")
 ```
 
 See also the file [src/example.py](src/example.py) for a configuration and usage example.
+This shows both the standard non-threaded non-async usage, and the use of the `asyncio`
+background logging feature. Under that option, when your program makes a logging statement, 
+it is added to a background queue and may not be written immediately and synchronously. 
 
 ### Configuration
 
@@ -119,7 +122,7 @@ kwargs={'backupCount': 5, 'maxBytes': 512*1024}
 Please note that Python 3.7 and higher accepts keyword arguments (kwargs) in a logging 
 config file, but earlier versions of Python only accept positional args.
 
-Note: you must have a "import concurrent_log_handler" before you call fileConfig(). For
+Note: you must have an `import concurrent_log_handler` before you call fileConfig(). For
 more information see http://docs.python.org/lib/logging-config-fileformat.html
 
 ### Line Endings
@@ -143,6 +146,7 @@ The following would force Unix-style LF line endings on Windows:
 To use the background logging queue, you must call this code at some point in your
 app where it sets up logging configuration. Please read the doc string in the
 file `concurrent_log_handler/queue.py` for more details. This requires Python 3.
+See also [src/example.py](src/example.py).
 
 ```python
 from concurrent_log_handler.queue import setup_logging_queues
