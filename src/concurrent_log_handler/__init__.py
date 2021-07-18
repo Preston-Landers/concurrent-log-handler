@@ -63,7 +63,6 @@ import time
 import traceback
 import warnings
 from contextlib import contextmanager
-from logging import LogRecord
 from logging.handlers import BaseRotatingHandler
 
 from portalocker import LOCK_EX, lock, unlock
@@ -102,16 +101,6 @@ __all__ = [
 PY2 = False
 if sys.version_info[0] == 2:
     PY2 = True
-
-
-# Workaround for handleError() in Python 2.7+ where record is written to stderr
-# TODO: unused - probably can delete now.
-class NullLogRecord(LogRecord):
-    def __init__(self, *args, **kw):
-        super(NullLogRecord, self).__init__(*args, **kw)
-
-    def __getattr__(self, attr):
-        return None
 
 
 class ConcurrentRotatingFileHandler(BaseRotatingHandler):
@@ -178,6 +167,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         expected. The same is true if this class is used by one application, but
         the RotatingFileHandler is used by another.
         """
+        # noinspection PyTypeChecker
         self.stream = None
         self.stream_lock = None
         self.owner = owner
@@ -205,7 +195,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         if delay not in (None, True):
             warnings.warn(
-                'parameter delay is now ignored and implied as True, '
+                'concurrent_log_handler parameter `delay` is now ignored and implied as True, '
                 'please remove from your config.',
                 DeprecationWarning)
 
@@ -218,7 +208,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.terminator = terminator or "\n"
 
         if owner and os.chown and pwd and grp:
+            # noinspection PyUnresolvedReferences
             self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid
+            # noinspection PyUnresolvedReferences
             self._set_gid = grp.getgrnam(self.owner[1]).gr_gid
 
         self.lockFilename = self.getLockFilename()
@@ -301,6 +293,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     self.stream.flush()
                     self.stream.close()
             finally:
+                # noinspection PyTypeChecker
                 self.stream = None
 
     def _console_log(self, msg, stack=False):
@@ -511,6 +504,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         self._console_log("Rotation completed")
 
+    # noinspection PyUnusedLocal
     def shouldRollover(self, record):
         """
         Determine if rollover should occur.
