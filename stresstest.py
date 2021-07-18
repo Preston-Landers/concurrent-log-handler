@@ -44,7 +44,7 @@ ENCODING = 'utf-8'
 
 
 class RotateLogStressTester:
-    def __init__(self, sharedfile, uniquefile, name="LogStressTester", logger_delay=0):
+    def __init__(self, sharedfile, uniquefile, name="LogStressTester"):
         self.sharedfile = sharedfile
         self.uniquefile = uniquefile
         self.name = name
@@ -53,7 +53,6 @@ class RotateLogStressTester:
         self.rotateCount = ROTATE_COUNT
         self.random_sleep_mode = False
         self.debug = True
-        self.logger_delay = logger_delay
         self.log = None
         self.use_gzip = True
         self.extended_unicode = True
@@ -66,7 +65,7 @@ class RotateLogStressTester:
         class. """
         rv = ConcurrentRotatingFileHandler(
             fn, 'a', self.rotateSize,
-            self.rotateCount, delay=self.logger_delay,
+            self.rotateCount,
             encoding=ENCODING,
             debug=self.debug, use_gzip=self.use_gzip)
 
@@ -222,11 +221,6 @@ parser.add_option(
 parser.add_option(
     "--debug",
     action="store_true", default=False)
-parser.add_option(
-    "--logger-delay",
-    action="store_true", default=False,
-    help="Enable the 'delay' mode in the logger class. "
-         "This means that the log file will be opened on demand.")
 
 
 def main_client(args):
@@ -238,7 +232,7 @@ def main_client(args):
     if os.path.isfile(client):
         sys.stderr.write("Already a client using output file %s\n" % client)
         sys.exit(1)
-    tester = RotateLogStressTester(shared, client, logger_delay=options.logger_delay)
+    tester = RotateLogStressTester(shared, client)
     tester.random_sleep_mode = options.random_sleep_mode
     tester.debug = options.debug
     tester.writeLoops = options.log_calls
@@ -300,6 +294,7 @@ class TestManager:
         return True
 
 
+# noinspection PyUnresolvedReferences
 def unified_diff(a, b, out=sys.stdout, out2=None):
     import difflib
     dfile = None
@@ -352,8 +347,6 @@ def main_runner(args):
             cmdline.append("--random-sleep-mode")
         if options.debug:
             cmdline.append("--debug")
-        if options.logger_delay:
-            cmdline.append("--logger-delay")
 
         child = manager.launchPopen(cmdline)
         child.update(sharedfile=shared, clientfile=client)
