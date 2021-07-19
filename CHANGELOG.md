@@ -1,5 +1,8 @@
 ## Change Log ##
 
+- 0.9.20: Threaded logging queue now uses asyncio and can be used after fork (PR#32)
+    Update classifiers to indicate support for Python 3.8 and 3.9.
+
 - 0.9.19: Fix Python 2 compatibility (again), thanks @buddly27
     Fix accidental detection of 'darwin' (Mac OS) as Windows in setup.py
 
