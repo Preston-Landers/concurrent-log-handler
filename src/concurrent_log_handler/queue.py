@@ -70,6 +70,11 @@ def setup_logging_queues():
 
     previous_queue_listeners = []
 
+    log_queue = queue.Queue(-1)  # No limit on size
+    queue_handler = QueueHandler(log_queue)
+    queue_listener = AsyncQueueListener(
+        log_queue, respect_handler_level=True)
+
     # Q: What about loggers created after this is called?
     # A: if they don't attach their own handlers they should be fine
     for logger_name in get_all_logger_names(include_root=True):
@@ -91,12 +96,6 @@ def setup_logging_queues():
                 previous_queue_listeners.append(GLOBAL_LOGGER_HANDLERS[logger_name][1])
             else:
                 ori_handlers.extend(logger.handlers)
-
-            log_queue = queue.Queue(-1)  # No limit on size
-
-            queue_handler = QueueHandler(log_queue)
-            queue_listener = AsyncQueueListener(
-                log_queue, respect_handler_level=True)
 
             queuify_logger(logger, queue_handler, queue_listener)
             # print("Replaced logger %s with queue listener: %s" % (
