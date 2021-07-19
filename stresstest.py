@@ -56,6 +56,7 @@ class RotateLogStressTester:
         self.log = None
         self.use_gzip = True
         self.extended_unicode = True
+        self.use_queue = False
         if PY2 and ENCODING != 'utf-8':
             # hopefully temporary... the problem is with stdout in the tester I think
             self.extended_unicode = False
@@ -99,6 +100,10 @@ class RotateLogStressTester:
         handler.setLevel(DEBUG)
         handler.setFormatter(formatter)
         self.log.addHandler(handler)
+
+        if self.use_queue:
+            from concurrent_log_handler.queue import setup_logging_queues
+            setup_logging_queues()
 
         # If this ever becomes a real "Thread", then remove this line:
         self.run()
@@ -221,6 +226,9 @@ parser.add_option(
 parser.add_option(
     "--debug",
     action="store_true", default=False)
+parser.add_option(
+    "--use-queue",
+    action="store_true", default=False)
 
 
 def main_client(args):
@@ -330,12 +338,19 @@ def main_runner(args):
         "-p", "--path", metavar="DIR",
         action="store", default="test_output",
         help="Path to a temporary directory.  Default: '%default'")
+    # parser.add_option(
+    #     "-k", "--keep",
+    #     action="store_true", default=False,
+    #     help="Don't automatically delete the --path directory at test start.")
 
     this_script = args[0]
     (options, args) = parser.parse_args(args)
     options.path = os.path.abspath(options.path)
     if not os.path.isdir(options.path):
         os.makedirs(options.path)
+    # elif not options.keep:
+    #     import shutil
+    #     shutil.rmtree(options.path)
 
     manager = TestManager(options.path)
     shared = os.path.join(options.path, "shared.log")
@@ -347,6 +362,8 @@ def main_runner(args):
             cmdline.append("--random-sleep-mode")
         if options.debug:
             cmdline.append("--debug")
+        if options.use_queue:
+            cmdline.append("--use-queue")
 
         child = manager.launchPopen(cmdline)
         child.update(sharedfile=shared, clientfile=client)
