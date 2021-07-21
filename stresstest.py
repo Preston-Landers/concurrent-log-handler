@@ -31,7 +31,12 @@ from concurrent_log_handler import ConcurrentRotatingFileHandler, PY2, randbits
 __version__ = '$Id$'
 __author__ = 'Lowell Alleman'
 
-ROTATE_COUNT = 5000
+# The total amount of rotated files to keep through the test run. Any data accumulated
+# before this is reached gets lost. It needs to be high enough so that all loop iterations
+# across all threads get all their data captured without losing anything otherwise the
+# diff at the end will fail. But if rollover file count get very high then performance
+# becomes slow due to the mass renaming and some threads may throw a lock acquire failure!
+ROTATE_COUNT = 10000
 
 # Not all encodings will work here unless you remove some of the Unicode
 # chars in the test string.
@@ -125,18 +130,21 @@ class RotateLogStressTester:
 
         logfuncts = [self.log.debug, self.log.info, self.log.warning, self.log.error]
 
-        self.log.info("Starting to write random log message.   Loop=%d", self.writeLoops)
+        num_rand_bits = 64
+        rand_string_len = 1024 * 5
+
+        self.log.info("c=%s Starting to write random log message.   Loop=%d", c, self.writeLoops)
         while c <= self.writeLoops:
             c += 1
 
             self.log.debug(
-                "Triggering logging within format of another log: %r",
-                InnerLoggerExample(
-                    self.log, randbits(64), rand_string(1024 * 10)))
+                "c=%s Triggering logging within format of another log: %r",
+                c, InnerLoggerExample(
+                    self.log, randbits(num_rand_bits), rand_string(rand_string_len), c))
 
             msg = random.choice(msgs)
             logfunc = random.choice(logfuncts)
-            logfunc(msg, randbits(64))
+            logfunc("c=%s " + msg, c, randbits(num_rand_bits))
 
             if self.random_sleep_mode and c % 1000 == 0:
                 # Sleep from 0-5 seconds
@@ -144,7 +152,7 @@ class RotateLogStressTester:
                 print("PID %d sleeping for %d seconds" % (os.getpid(), s))
                 sleep(s)
                 # break
-        self.log.info("Done writing random log messages.")
+        self.log.info("c=%s Done writing random log messages.", c)
 
 
 def iter_lognames(logfile, count):
@@ -184,14 +192,15 @@ def combine_logs(combinedlog, iterable, mode="wb"):
 
 
 class InnerLoggerExample(object):
-    def __init__(self, log, a, b):
+    def __init__(self, log, a, b, c):
         self.log = log
         self.a = a
         self.b = b
+        self.c = c
 
     def __str__(self):
         # This should trigger a logging event within the format() handling of another event
-        self.log.debug("Inner logging example: a=%r, b=%r", self.a, self.b)
+        self.log.debug("c=%s Inner logging example: a=%r, b=%r", self.c, self.a, self.b)
         return "<InnerLoggerExample a=%r>" % (self.a,)
 
     def __repr__(self):

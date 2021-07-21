@@ -83,7 +83,7 @@ these requirements:
  
 ### Simple Example
 
-Here is a simple usage example:
+Here is a simple direct usage example:
 
 ```python
 from logging import getLogger, INFO
@@ -116,14 +116,32 @@ class=handlers.ConcurrentRotatingFileHandler
 level=NOTSET
 formatter=form01
 args=("rotating.log", "a")
-kwargs={'backupCount': 5, 'maxBytes': 512*1024}
+kwargs={'backupCount': 5, 'maxBytes': 1048576, 'use_gzip': True}
 ```
     
+That sets the files to be rotated at about 10 MB, and to keep the last 5 rotations.
+It also turns on gzip compression for rotated files.
+
 Please note that Python 3.7 and higher accepts keyword arguments (kwargs) in a logging 
 config file, but earlier versions of Python only accept positional args.
 
 Note: you must have an `import concurrent_log_handler` before you call fileConfig(). For
 more information see http://docs.python.org/lib/logging-config-fileformat.html
+
+### Recommended Settings
+
+For best performance, avoid setting the `backupCount` (number of rollover files to keep) too
+high. What counts as "too high" is situational, but a good rule of thumb might be to keep
+around a maximum of 20 rollover files. If necessary, increase the `maxBytes` so that each
+file can hold more. Too many rollover files can slow down the rollover process due to the
+mass file renames, and the rollover occurs while the file lock is held for the main logfile.
+
+How big to allow each file to grow (`maxBytes`) is up to your needs, but generally a value of 
+10 MB (1048576) to 100 MB (1048576) is reasonable.
+
+Gzip compression is turned off by default. If enabled it will reduce the storage needed for rotated
+files, at the cost of some minimal CPU overhead. Use of the background logging queue shown below 
+can help offload the cost of logging to another thread.  
 
 ### Line Endings
 
@@ -144,7 +162,7 @@ The following would force Unix-style LF line endings on Windows:
 ### Background logging queue
 
 To use the background logging queue, you must call this code at some point in your
-app where it sets up logging configuration. Please read the doc string in the
+app after it sets up logging configuration. Please read the doc string in the
 file `concurrent_log_handler/queue.py` for more details. This requires Python 3.
 See also [src/example.py](src/example.py).
 

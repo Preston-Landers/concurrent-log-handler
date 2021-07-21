@@ -124,6 +124,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         :param mode: write mode: defaults to 'a' for text append
         :param maxBytes: rotate the file at this size in bytes
         :param backupCount: number of rotated files to keep before deleting.
+            Avoid setting this very high, probably 20 or less, and prefer setting maxBytes higher.
+            A very large number of rollover files can slow down the rollover enough to cause
+            problems due to the mass file renaming while the main lock is held.
         :param encoding: text encoding for logfile
         :param debug: add extra debug statements to this class (for development)
         :param delay: DEPRECATED: value is ignored
@@ -184,6 +187,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._debug = debug
         self.use_gzip = True if gzip and use_gzip else False
         self.gzip_buffer = 8096
+        self.maxLockAttempts = 20
 
         if unicode_error_policy not in ('ignore', 'replace', 'strict'):
             unicode_error_policy = 'ignore'
@@ -399,7 +403,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             return   # already locked... recursive?
         self._open_lockfile()
         if self.stream_lock:
-            for i in range(10):
+            for i in range(self.maxLockAttempts):
                 # noinspection PyBroadException
                 try:
                     lock(self.stream_lock, LOCK_EX)
@@ -408,7 +412,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 except Exception:
                     continue
             else:
-                raise RuntimeError("Cannot acquire lock after 10 attempts")
+                raise RuntimeError(
+                    "Cannot acquire lock after %s attempts" % (self.maxLockAttempts,))
         else:
             self._console_log("No self.stream_lock to lock", stack=True)
 
@@ -490,11 +495,21 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # opens "logfile.3" in notepad); we could test rename each file, but
         # nobody's complained about this being an issue; so the additional
         # code complexity isn't warranted.
-        for i in range(self.backupCount - 1, 0, -1):
+
+        do_renames = []
+        for i in range(1, self.backupCount - 1):
             sfn = "%s.%d" % (self.baseFilename, i)
             dfn = "%s.%d" % (self.baseFilename, i + 1)
             if os.path.exists(sfn + gzip_ext):
-                do_rename(sfn, dfn)
+                do_renames.append((sfn, dfn))
+            else:
+                # Break looking for more rollover files as soon as we can't find one
+                # at the expected name.
+                break
+
+        for (sfn, dfn) in reversed(do_renames):
+            do_rename(sfn, dfn)
+
         dfn = self.baseFilename + ".1"
         do_rename(tmpname, dfn)
 
