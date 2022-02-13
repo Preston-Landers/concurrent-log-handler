@@ -561,10 +561,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         return
 
     def _do_chown_and_chmod(self, filename):
-        if self._set_uid and self._set_gid:
+        if self._set_uid is not None and self._set_gid is not None:
             os.chown(filename, self._set_uid, self._set_gid)
 
-        if self.chmod and os.chmod:
+        if self.chmod is not None and os.chmod:
             os.chmod(filename, self.chmod)
 
 
