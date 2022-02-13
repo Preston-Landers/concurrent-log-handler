@@ -56,31 +56,35 @@ Concurrent Log Handler (CLH) is designed to allow multiple processes to write to
 logfile in a concurrent manner. It is important that each process involved MUST follow
 these requirements:
 
- * Each process must create its OWN instance of the handler (`ConcurrentRotatingFileHandler`)
+* You can't serialize a handler instance and reuse it in another process. This means you cannot, for
+  example, pass a CLH handler instance from parent process to child process using
+  the `multiprocessing` package in spawn mode (or similar techniques that use serialized objects).
+  Each child process must initialize its own CLH instance.
 
-   * This requirement does not apply to threads within a given process. Different threads
-     within a process can use the same CLH instance. Thread locking is handled automatically.
+* When using the `multiprocessing` module in "spawn" (non-fork) mode, each child process must create
+  its OWN instance of the handler (`ConcurrentRotatingFileHandler`). The child target function
+  should call code that initializes a new CLH instance.
 
- * As a result of the above, you CANNOT serialize a handler instance and reuse it in another
-   process. This means you cannot, for example, pass a CLH handler instance from parent process
-   to child process using the `multiprocessing` package (or similar techniques). Each child
-   process must initialize its own CLH instance. In the case of a multiprocessing target
-   function, the child target function can call code to initialize a CLH instance. 
-   If your app uses fork() then this may not apply; child processes of a fork() should 
-   be able to inherit the object instance.
+   * This requirement does not apply to threads within a given process. Different threads within a
+     process can use the same CLH instance. Thread locking is handled automatically.
 
- * It is important that every process or thread writing to a given logfile must all use the
-   same settings, especially related to file rotation. Also do not attempt to mix different 
-   handler classes writing to the same file, e.g. do not also use a `RotatingFileHandler` on 
-   the same file.
+   * This also does not apply to `fork()` based child processes. Child processes of a fork() call
+     should be able to inherit the CLH object instance.
 
- * Special attention may need to be paid when the log file being written to resides on a network
-   shared drive. Whether the multi-process advisory lock technique (via portalocker) works 
-   on a network share may depend on the details of your configuration.
+   * This limitation exists because the CLH object can't be serialized, passed over a network or
+     pipe, and reconstituted at the other end.
 
- * A separate handler instance is needed for each individual log file. For instance, if your 
-   app writes to two different logs you will need to set up two CLH instances per process.
- 
+* It is important that every process or thread writing to a given logfile must all use the same
+  settings, especially related to file rotation. Also do not attempt to mix different handler
+  classes writing to the same file, e.g. do not also use a `RotatingFileHandler` on the same file.
+
+* Special attention may need to be paid when the log file being written to resides on a network
+  shared drive. Whether the multiprocess advisory lock technique (via portalocker) works on a
+  network share may depend on the details of your configuration.
+
+* A separate handler instance is needed for each individual log file. For instance, if your app
+  writes to two different logs you will need to set up two CLH instances per process.
+
 ### Simple Example
 
 Here is a simple direct usage example:
