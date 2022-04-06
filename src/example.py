@@ -75,7 +75,7 @@ def my_logging_setup(log_name='example.log', use_async=False):
         'handlers': {
             'my_concurrent_log': {
                 'level': 'DEBUG',
-                'class': 'logging.handlers.ConcurrentRotatingFileHandler',
+                'class': 'concurrent_log_handler.ConcurrentRotatingFileHandler',
 
                 # Example of a custom format for this log.
                 'formatter': 'example2',
