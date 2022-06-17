@@ -63,7 +63,7 @@ import time
 import traceback
 import warnings
 from contextlib import contextmanager
-from logging.handlers import BaseRotatingHandler
+from logging.handlers import BaseRotatingHandler, TimedRotatingFileHandler
 
 # noinspection PyPackageRequirements
 from portalocker import LOCK_EX, lock, unlock
@@ -102,7 +102,7 @@ __all__ = [
     "ConcurrentRotatingFileHandler",
 ]
 
-class ConcurrentRotatingFileHandler(BaseRotatingHandler):
+class ConcurrentFileHandlerMixin(BaseRotatingHandler):
     f"""Handler for logging to a set of files, which switches from one file to the
     next when the current file reaches a certain size. Multiple processes can
     write to the log file concurrently, but this may mean that the file will
@@ -227,7 +227,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # Construct the handler with the given arguments in "delayed" mode
         # because we will handle opening the file as needed. File name
         # handling is done by FileHandler since Python 2.5.
-        super(ConcurrentRotatingFileHandler, self).__init__(
+        super(ConcurrentFileHandlerMixin, self).__init__(
             filename, mode, encoding=encoding, delay=True
         )
 
@@ -452,7 +452,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         try:
             self._close()
         finally:
-            super(ConcurrentRotatingFileHandler, self).close()
+            super(ConcurrentFileHandlerMixin, self).close()
 
     def doRollover(self):
         """
@@ -545,17 +545,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         del record  # avoid pychecker warnings
         return self._shouldRollover()
 
-    def _shouldRollover(self):
-        if self.maxBytes > 0:  # are we rolling over?
-            self.stream = self.do_open()
-            try:
-                self.stream.seek(0, 2)  # due to non-posix-compliant Windows feature
-                if self.stream.tell() >= self.maxBytes:
-                    return True
-            finally:
-                self._close()
-        return False
-
     def do_gzip(self, input_filename):
         if not gzip:
             self._console_log("#no gzip available", stack=False)
@@ -582,8 +571,26 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             os.chmod(filename, self.chmod)
 
 
+class ConcurrentRotatingFileHandler(BaseRotatingHandler, ConcurrentFileHandlerMixin):
+    def _shouldRollover(self):
+        if self.maxBytes > 0:  # are we rolling over?
+            self.stream = self.do_open()
+            try:
+                self.stream.seek(0, 2)  # due to non-posix-compliant Windows feature
+                if self.stream.tell() >= self.maxBytes:
+                    return True
+            finally:
+                self._close()
+        return False
+
+
+class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler, ConcurrentFileHandlerMixin):
+    pass
+
+
 # Publish this class to the "logging.handlers" module so that it can be used
 # from a logging config file via logging.config.fileConfig().
 import logging.handlers  # noqa: E402
 
 logging.handlers.ConcurrentRotatingFileHandler = ConcurrentRotatingFileHandler
+logging.handlers.ConcurrentTimedRotatingFileHandler = ConcurrentTimedRotatingFileHandler
