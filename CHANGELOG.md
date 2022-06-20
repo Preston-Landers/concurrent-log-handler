@@ -1,5 +1,7 @@
 ## Change Log ##
-
+- 0.9.21: Added new optional parameter "lock_file_directory"
+    * Creates given directory, if it does not exist.
+    * Writes lock file into given directory, instead next to the logging file itself.
 - 0.9.20: Threaded logging queue now uses asyncio and can be used after fork (PR#32).
     * The classifiers have been updated to indicate generic Python 3 support without needing to
       specify all sub-versions. (However, Python 3.0 to 3.4 support is not claimed.)
