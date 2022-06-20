@@ -55,7 +55,7 @@ See the README file for an example usage of this module.
 This module supports Python 2.6 and later.
 
 """
-
+import errno
 import io
 import os
 import sys
@@ -115,7 +115,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self, filename, mode='a', maxBytes=0, backupCount=0,
             encoding=None, debug=False, delay=None, use_gzip=False,
             owner=None, chmod=None, umask=None, newline=None, terminator="\n",
-            unicode_error_policy='ignore',
+            unicode_error_policy='ignore', lock_file_directory=None
     ):
         """
         Open the specified file and use it as the stream for logging.
@@ -144,6 +144,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         :param unicode_error_policy: should be one of 'ignore', 'replace', 'strict'
         Determines what happens when a message is written to the log that the stream encoding
         doesn't support. Default is to ignore, i.e., drop the unusable characters.
+        :param lock_file_directory: name of directory for all lock files as alternative living space
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
@@ -217,14 +218,15 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             # noinspection PyUnresolvedReferences
             self._set_gid = grp.getgrnam(self.owner[1]).gr_gid
 
-        self.lockFilename = self.getLockFilename()
+        self.lockFilename = self.getLockFilename(lock_file_directory)
         self.is_locked = False
 
-    def getLockFilename(self):
+    def getLockFilename(self, lock_file_directory):
         """
         Decide the lock filename. If the logfile is file.log, then we use `.__file.lock` and
         not `file.log.lock`. This only removes the extension if it's `*.log`.
 
+        :param lock_file_directory: name of the directory for alternative living space of lock files
         :return: the path to the lock file.
         """
         if self.baseFilename.endswith(".log"):
@@ -235,7 +237,20 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         lock_path, lock_name = os.path.split(lock_file)
         # hide the file on Unix and generally from file completion
         lock_name = ".__" + lock_name
-        return os.path.join(lock_path, lock_name)
+        if lock_file_directory:
+            self.__create_lock_directory__(lock_file_directory)
+            return os.path.join(lock_file_directory, lock_name)
+        else:
+            return os.path.join(lock_path, lock_name)
+
+    def __create_lock_directory__(self, lock_file_directory):
+        if not os.path.exists(lock_file_directory):
+            try:
+                os.makedirs(lock_file_directory)
+            except OSError as err:
+                if err.errno != errno.EEXIST:
+                    # If directory already exists, then we're done. Everything else is fishy...
+                    raise
 
     def _open_lockfile(self):
         if self.stream_lock and not self.stream_lock.closed:
