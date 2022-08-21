@@ -497,7 +497,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # code complexity isn't warranted.
 
         do_renames = []
-        for i in range(1, self.backupCount - 1):
+        for i in range(1, self.backupCount):
             sfn = "%s.%d" % (self.baseFilename, i)
             dfn = "%s.%d" % (self.baseFilename, i + 1)
             if os.path.exists(sfn + gzip_ext):
