@@ -68,8 +68,8 @@ these requirements:
    * This requirement does not apply to threads within a given process. Different threads within a
      process can use the same CLH instance. Thread locking is handled automatically.
 
-   * This also does not apply to `fork()` based child processes. Child processes of a fork() call
-     should be able to inherit the CLH object instance.
+   * This also does not apply to `fork()` based child processes such as gunicorn --preload. 
+     Child processes of a fork() call should be able to inherit the CLH object instance.
 
    * This limitation exists because the CLH object can't be serialized, passed over a network or
      pipe, and reconstituted at the other end.
@@ -79,11 +79,20 @@ these requirements:
   classes writing to the same file, e.g. do not also use a `RotatingFileHandler` on the same file.
 
 * Special attention may need to be paid when the log file being written to resides on a network
-  shared drive. Whether the multiprocess advisory lock technique (via portalocker) works on a
-  network share may depend on the details of your configuration.
+  shared drive or a cloud synced folder (Dropbox, Google Drive, etc.). Whether the multiprocess 
+  advisory lock technique (via portalocker) works in these folders may depend on the details of 
+  your configuration.
+
+  Note that a `lock_file_directory` setting (kwarg) now exists (as of v0.9.21) which lets you
+  place the lockfile at a different location from the main logfile. This might solve problems
+  related to trying to lock files in network shares or cloud folders (Dropbox, Google Drive, etc.)
+  However, if multiple hosts are writing to the same shared logfile, they must also have access
+  to the same lock file.
+
+  Alternatively, you may be able to set your cloud sync software to ignore all `.lock` files.
 
 * A separate handler instance is needed for each individual log file. For instance, if your app
-  writes to two different logs you will need to set up two CLH instances per process.
+  writes to two different log files you will need to set up two CLH instances per process.
 
 ### Simple Example
 
@@ -146,6 +155,13 @@ How big to allow each file to grow (`maxBytes`) is up to your needs, but general
 Gzip compression is turned off by default. If enabled it will reduce the storage needed for rotated
 files, at the cost of some minimal CPU overhead. Use of the background logging queue shown below 
 can help offload the cost of logging to another thread.  
+
+Sometimes you may need to place the lock file at a different location from the main log
+file. A `lock_file_directory` setting (kwarg) now exists (as of v0.9.21) which lets you
+place the lockfile at a different location. This can often solve problems related to trying
+to lock files in cloud folders (Dropbox, Google Drive, OneDrive, etc.) However, in
+order for this to work, each process writing to the log must have access to the same
+lock file location, even if they are running on different hosts.
 
 ### Line Endings
 

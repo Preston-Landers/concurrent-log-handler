@@ -55,6 +55,7 @@ See the README file for an example usage of this module.
 This module supports Python 2.6 and later.
 
 """
+
 import errno
 import io
 import os
@@ -144,7 +145,11 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         :param unicode_error_policy: should be one of 'ignore', 'replace', 'strict'
         Determines what happens when a message is written to the log that the stream encoding
         doesn't support. Default is to ignore, i.e., drop the unusable characters.
-        :param lock_file_directory: name of directory for all lock files as alternative living space
+        :param lock_file_directory: name of directory for all lock files as alternative
+        living space; this is useful for when the main log files reside in a cloud synced
+        drive like Dropbox, OneDrive, Google Docs, etc, which may prevent the lock files
+        from working correctly. The lock file must be accessible to all processes writing
+        to a shared log, including across all different hosts (machines).
 
         By default, the file grows indefinitely. You can specify particular
         values of maxBytes and backupCount to allow the file to rollover at
@@ -243,7 +248,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         else:
             return os.path.join(lock_path, lock_name)
 
-    def __create_lock_directory__(self, lock_file_directory):
+    @staticmethod
+    def __create_lock_directory__(lock_file_directory):
         if not os.path.exists(lock_file_directory):
             try:
                 os.makedirs(lock_file_directory)

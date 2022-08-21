@@ -1,3 +1,6 @@
+# See stresstest.py for a more intensive test.
+# This is more like a very quick test of basic functionality.
+
 import logging.config
 from pathlib import Path
 

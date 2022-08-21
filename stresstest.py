@@ -62,6 +62,7 @@ class RotateLogStressTester:
         self.use_gzip = True
         self.extended_unicode = True
         self.use_queue = False
+        self.lock_dir = None
         if PY2 and ENCODING != 'utf-8':
             # hopefully temporary... the problem is with stdout in the tester I think
             self.extended_unicode = False
@@ -73,7 +74,8 @@ class RotateLogStressTester:
             fn, 'a', self.rotateSize,
             self.rotateCount,
             encoding=ENCODING,
-            debug=self.debug, use_gzip=self.use_gzip)
+            debug=self.debug, use_gzip=self.use_gzip,
+            lock_file_directory=self.lock_dir)
 
         # To force LF only linefeeds on Windows: newline='', terminator='\n'
         # To force CRLF on Unix: newline='', terminator='\r\n'
@@ -238,6 +240,11 @@ parser.add_option(
 parser.add_option(
     "--use-queue",
     action="store_true", default=False)
+parser.add_option(
+    "--lock-dir", metavar="DIR",
+    action="store", default=None,
+    help="Store lock files in an alternate directory."
+)
 
 
 def main_client(args):
@@ -253,6 +260,7 @@ def main_client(args):
     tester.random_sleep_mode = options.random_sleep_mode
     tester.debug = options.debug
     tester.writeLoops = options.log_calls
+    tester.lock_dir = options.lock_dir
     tester.start()
     print("We are done  pid=%d" % os.getpid())
 
@@ -382,6 +390,8 @@ def main_runner(args):
             cmdline.append("--debug")
         if options.use_queue:
             cmdline.append("--use-queue")
+        if options.lock_dir:
+            cmdline.append("--lock-dir=%s" % (options.lock_dir,))
 
         child = manager.launchPopen(cmdline)
         child.update(sharedfile=shared, clientfile=client)
