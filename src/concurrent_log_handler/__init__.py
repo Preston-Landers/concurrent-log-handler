@@ -100,6 +100,7 @@ except ImportError:
 
 __all__ = [
     "ConcurrentRotatingFileHandler",
+    "ConcurrentTimedRotatingFileHandler",
 ]
 
 class ConcurrentFileHandlerMixin(BaseRotatingHandler):

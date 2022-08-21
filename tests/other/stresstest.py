@@ -26,7 +26,12 @@ from subprocess import Popen
 from time import sleep
 
 # local lib; for testing
-from concurrent_log_handler import ConcurrentRotatingFileHandler, PY2, randbits
+from concurrent_log_handler import (
+    ConcurrentRotatingFileHandler,
+    ConcurrentTimedRotatingFileHandler,
+    PY2, randbits
+)
+from concurrent_log_handler.__version__ import __version__
 
 __version__ = "$Id$"
 __author__ = "Lowell Alleman"
@@ -38,6 +43,7 @@ __author__ = "Lowell Alleman"
 # across all threads get all their data captured without losing anything otherwise the
 # diff at the end will fail. But if rollover file count get very high then performance
 # becomes slow due to the mass renaming and some threads may throw a lock acquire failure!
+# TODO: Better testing around getting the backupCount right. Also add CLI option here.
 ROTATE_COUNT = 10000
 
 # Not all encodings will work here unless you remove some of the Unicode
@@ -65,6 +71,7 @@ class RotateLogStressTester:
         self.extended_unicode = True
         self.use_queue = False
         self.lock_dir = None
+        self.use_timed_rotating = False
         if PY2 and ENCODING != "utf-8":
             # hopefully temporary... the problem is with stdout in the tester I think
             self.extended_unicode = False
@@ -72,6 +79,16 @@ class RotateLogStressTester:
     def getLogHandler(self, fn):
         """Override this method if you want to test a different logging handler
         class."""
+
+        if self.use_timed_rotating:
+            rv = ConcurrentTimedRotatingFileHandler(
+                fn, when='S', interval=self.use_timed_rotating,
+                backupCount=self.rotateCount, encoding=ENCODING,
+                debug=self.debug,
+                use_gzip=self.use_gzip
+            )
+            return rv
+
         rv = ConcurrentRotatingFileHandler(
             fn,
             "a",
@@ -189,6 +206,14 @@ def iter_lognames(logfile, count):
     yield logfile
 
 
+def iter_lognames_timed(base_path, logfile):
+    """ Generator for log file names based on a rotation scheme """
+    import glob
+    log_glob = os.path.join(base_path, logfile) + "*"
+    for path in glob.glob(log_glob):
+        yield path
+
+
 def iter_logs(iterable, missing_ok=False):
     """Generator to extract log entries from shared log file."""
     for fn in iterable:
@@ -272,6 +297,13 @@ parser.add_option(
     help="Store lock files in an alternate directory.",
 )
 
+# An option for ConcurrentTimedRotatingFileHandler
+parser.add_option(
+    "-t", "--timed", metavar="SEC",
+    action="store", type="int", default=False,
+    help="Use ConcurrentTimedRotatingFileHandler and rotate every SEC seconds."
+)
+
 
 def main_client(args):
     (options, args) = parser.parse_args(args)
@@ -287,6 +319,7 @@ def main_client(args):
     tester.debug = options.debug
     tester.writeLoops = options.log_calls
     tester.lock_dir = options.lock_dir
+    tester.use_timed_rotating = options.timed
     tester.start()
     print("We are done  pid=%d" % os.getpid())
 
@@ -449,6 +482,8 @@ def main_runner(args):
             cmdline.append("--use-queue")
         if options.lock_dir:
             cmdline.append("--lock-dir=%s" % (options.lock_dir,))
+        if options.timed not in (None, "", False, 0, "0"):
+            cmdline.append("--timed=%d" % options.timed)
 
         child = manager.launchPopen(cmdline)
         child.update(sharedfile=shared, clientfile=client)
@@ -476,7 +511,10 @@ def main_runner(args):
     print("done.")
 
     print("Writing out combined shared logs...")
-    shared_log_files = iter_lognames(shared, ROTATE_COUNT)
+    if options.timed:
+        shared_log_files = iter_lognames_timed(options.path, shared)
+    else:
+        shared_log_files = iter_lognames(shared, ROTATE_COUNT)
     log_lines = iter_logs(shared_log_files, missing_ok=True)
     combine_logs(shared_combo, sort_em(log_lines))
     print("done.")
