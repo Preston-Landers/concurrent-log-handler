@@ -347,19 +347,28 @@ def main_runner(args):
         "-p", "--path", metavar="DIR",
         action="store", default="test_output",
         help="Path to a temporary directory.  Default: '%default'")
-    # parser.add_option(
-    #     "-k", "--keep",
-    #     action="store_true", default=False,
-    #     help="Don't automatically delete the --path directory at test start.")
+    parser.add_option(
+        "-k", "--keep",
+        action="store_true", default=False,
+        help="Don't automatically delete the --path directory at test start.")
 
     this_script = args[0]
     (options, args) = parser.parse_args(args)
     options.path = os.path.abspath(options.path)
+    if not options.keep and os.path.exists(options.path):
+        import shutil
+        # Can we delete everything under the test output path but not the folder itself?
+        shutil.rmtree(options.path)
+
     if not os.path.isdir(options.path):
         os.makedirs(options.path)
-    # elif not options.keep:
-    #     import shutil
-    #     shutil.rmtree(options.path)
+    else:
+        existing_files = len(os.listdir(options.path))
+        if existing_files:
+            sys.stderr.write(
+                "Output directory is not empty and --keep was not given: %s files in %s.\n" % (
+                    existing_files, options.path,))
+            sys.exit(1)
 
     manager = TestManager(options.path)
     shared = os.path.join(options.path, "shared.log")
