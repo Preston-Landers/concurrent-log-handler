@@ -591,12 +591,13 @@ class ConcurrentRotatingFileHandler(ConcurrentFileHandlerMixin):
 class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler, ConcurrentFileHandlerMixin):
     """A concurrent log handler that does time-based-rotation instead of size-based.
     See the docs for TimedRotatingFileHandler."""
+
     def __init__(
         self, filename, when='h', interval=1, backupCount=0,
         encoding=None, delay=False, utc=False, atTime=None,
         errors=None, mode='a', debug=False, use_gzip=False,
         owner=None, chmod=None, umask=None, newline=None, terminator="\n",
-        unicode_error_policy='ignore'
+        unicode_error_policy='ignore', lock_file_directory=None
     ):
         TimedRotatingFileHandler.__init__(
             self, filename, when=when, interval=interval, backupCount=backupCount,
@@ -607,6 +608,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler, ConcurrentFil
             encoding=encoding, debug=debug, delay=delay, use_gzip=use_gzip,
             owner=owner, chmod=chmod, umask=umask, newline=newline, terminator=terminator,
             unicode_error_policy=unicode_error_policy,
+            lock_file_directory=lock_file_directory
         )
 
 
