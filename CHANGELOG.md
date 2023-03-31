@@ -7,7 +7,9 @@
     - Useful when the log files reside in a cloud synced folder like Dropbox, Google Drive,
         OneDrive, etc. Sometimes these do not work correctly with the lock files.
   - Fix not replacing the last file (greatest backup number) when rotating. Thanks tzongw.
-    - <https://github.com/Preston-Landers/concurrent-log-handler/pull/52>
+    - <https://github.com/Preston-Landers/concurrent-log-handler/pull/52> 
+  - Add support for "namer" function to customize the naming of rotated files. Thanks @dashedman.
+ 
 
 - 0.9.20: Threaded logging queue now uses asyncio and can be used after fork (PR#32).
   - The classifiers have been updated to indicate generic Python 3 support without needing to

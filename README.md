@@ -163,6 +163,10 @@ to lock files in cloud folders (Dropbox, Google Drive, OneDrive, etc.) However, 
 order for this to work, each process writing to the log must have access to the same
 lock file location, even if they are running on different hosts.
 
+You can set the `namer` attribute of the handler to customize the naming of the rotated files,
+in line with the `BaseRotatingHandler` class. See the Python docs for more details:
+https://docs.python.org/3.11/library/logging.handlers.html#logging.handlers.BaseRotatingHandler.namer
+
 ### Line Endings
 
 By default, the logfile will have line endings appropriate to the platform. On Windows
