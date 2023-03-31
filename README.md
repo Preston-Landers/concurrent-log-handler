@@ -14,7 +14,7 @@ https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
 
 Summary of other changes:
 
-* Renamed package to `concurrent_log_handler`
+* Renamed package to `concurrent_log_handler` (abbreviated CLH in this file.)
 * Provide `use_gzip` option to compress rotated logs
 * Support for Windows
 * Uses file locking to ensure exclusive write access
@@ -25,6 +25,30 @@ Summary of other changes:
   handling log events in a background thread. Optional: requires Python 3. 
 * Allow setting owner and mode permissions of rollover file on Unix
 * Depends on `portalocker` package, which (on Windows only) depends on `PyWin32`
+
+### Primary use cases
+
+The main use case this is designed to support is when you have a Python application that runs in 
+multiple processes, potentially on multiple hosts connected with a shared network drive, and you want 
+to write all log events to a central log file.
+
+However, this is not the only way to achieve shared logging from multiple processes. You can also
+centralize logging by using cloud logging services like Azure Log Monitor, Logstash, etc. Or you can 
+implement your own remote logging server as shown here:
+
+https://docs.python.org/3/howto/logging-cookbook.html#sending-and-receiving-logging-events-across-a-network
+
+Concurrent-Log-Handler includes a QueueHandler and QueueListener implementation that can be used to 
+perform logging in the background asynchronously, so the thread or process making the log statement doesn't have
+to wait for its completion. See [this section](#simple-example). Using that example code, each process still 
+locks and writes the file separately, so there is no centralized writer. You could also write code to use 
+QueueHandler and QueueListener to queue up log events within each process to be sent to a central server, 
+instead of CLH's model where each process locks and writes to the log file.
+
+Please note that CLH only does size-based rotation at this time. There is a request open for
+time-based rotation.
+
+https://github.com/Preston-Landers/concurrent-log-handler/issues/23
 
 ## Links
 
@@ -117,7 +141,13 @@ log.info("Here is a very exciting log message, just for you")
 See also the file [src/example.py](src/example.py) for a configuration and usage example.
 This shows both the standard non-threaded non-async usage, and the use of the `asyncio`
 background logging feature. Under that option, when your program makes a logging statement, 
-it is added to a background queue and may not be written immediately and synchronously. 
+it is added to a background queue and may not be written immediately and synchronously. This 
+queue can span multiple processes using `multiprocessing` or `concurrent.futures`, and spanning
+multiple hosts works due to the use of file locking on the log file. Note that with this async 
+logging feature, currently there is no way for the caller to know when the logging statement 
+completed (no "Promise" or "Future" object is returned). 
+
+https://docs.python.org/3/library/logging.handlers.html#queuehandler
 
 ### Configuration
 
