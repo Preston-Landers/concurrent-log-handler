@@ -92,12 +92,11 @@ If you plan to modify the code, you should follow this procedure:
 - To build a Python "wheel" for distribution, use the following:
 
 ```shell
-  pip install twine
-  python setup.py clean --all bdist_wheel
+  python setup.py clean --all build sdist bdist_wheel
   # Copy the .whl file from under the "dist" folder
   # or upload with twine:
-  twine upload dist/concurrent-log-handler-0.9.21.tar.gz
-  twine upload dist/concurrent_log_handler-0.9.21-py2.py3-none-any.whl
+  pip install twine
+  twine upload dist/concurrent-log-handler-0.9.21.tar.gz dist/concurrent_log_handler-0.9.21-py2.py3-none-any.whl
 ```
 
 ### Important Requirements
