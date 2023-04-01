@@ -20,13 +20,14 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 about = {}
-with io.open(os.path.join(
-        here, 'src', 'concurrent_log_handler', '__version__.py'), 'r', encoding='utf-8') as fh:
+with io.open(
+    os.path.join(here, "src", "concurrent_log_handler", "__version__.py"),
+    "r",
+    encoding="utf-8",
+) as fh:
     exec(fh.read(), about)
 
-extra = {
-    'use_2to3': False
-}
+extra = {"use_2to3": False}
 
 classifiers = """\
 Development Status :: 4 - Beta
@@ -40,7 +41,9 @@ Topic :: Software Development :: Libraries :: Python Modules
 License :: OSI Approved :: Apache Software License
 """
 
-package_keywords = "logging, windows, linux, unix, rotate, QueueHandler, QueueListener, portalocker"
+package_keywords = (
+    "logging, windows, linux, unix, rotate, QueueHandler, QueueListener, portalocker"
+)
 
 # https://github.com/Preston-Landers/concurrent-log-handler/issues/28
 # If Python 2, don't allow fulfillment with portalocker 2.0 as it won't work
@@ -59,23 +62,25 @@ if sys.platform.startswith("windows"):
         install_requires.append("pywin32>=223")
 
 setup(
-    name=about['__title__'],
-    version=about['__version__'],
-    author=about['__author__'],
-    author_email=about['__author_email__'],
-    packages=['concurrent_log_handler'],
-    package_dir={'': 'src', },
-    url=about['__url__'],
-    license=about['__license__'],
-    description=about['__description__'],
+    name=about["__title__"],
+    version=about["__version__"],
+    author=about["__author__"],
+    author_email=about["__author_email__"],
+    packages=["concurrent_log_handler"],
+    package_dir={
+        "": "src",
+    },
+    url=about["__url__"],
+    license=about["__license__"],
+    description=about["__description__"],
     long_description=long_description,
     long_description_content_type="text/markdown",
     # platforms=["nt", "posix"],
     install_requires=install_requires,
     extras_require={
-        "dev": ['pytest', 'tox', 'black'],
+        "dev": ["pytest", "tox", "black"],
     },
-    tests_require=['pytest'],
+    tests_require=["pytest"],
     keywords=package_keywords,
     classifiers=classifiers.splitlines(),
     zip_safe=True,

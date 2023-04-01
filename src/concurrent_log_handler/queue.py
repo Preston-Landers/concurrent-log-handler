@@ -24,6 +24,7 @@ Additional code provided by Journyx, Inc. http://www.journyx.com
 
 import atexit
 import logging
+
 # noinspection PyCompatibility
 import queue
 import sys
@@ -95,8 +96,7 @@ def setup_logging_queues():
             log_queue = queue.Queue(-1)  # No limit on size
 
             queue_handler = QueueHandler(log_queue)
-            queue_listener = AsyncQueueListener(
-                log_queue, respect_handler_level=True)
+            queue_listener = AsyncQueueListener(log_queue, respect_handler_level=True)
 
             queuify_logger(logger, queue_handler, queue_listener)
             # print("Replaced logger %s with queue listener: %s" % (
@@ -142,7 +142,7 @@ def get_all_logger_names(include_root=False):
     # noinspection PyUnresolvedReferences
     rv = list(logging.Logger.manager.loggerDict.keys())
     if include_root:
-        rv.insert(0, '')
+        rv.insert(0, "")
     return rv
 
 
@@ -164,13 +164,13 @@ def queuify_logger(logger, queue_handler, queue_listener):
         logger = logging.getLogger(logger)
 
     # Get handlers that aren't being listened for.
-    handlers = [handler for handler in logger.handlers
-                if handler not in queue_listener.handlers]
+    handlers = [
+        handler for handler in logger.handlers if handler not in queue_listener.handlers
+    ]
 
     if handlers:
         # The default QueueListener stores handlers as a tuple.
-        queue_listener.handlers = \
-            tuple(list(queue_listener.handlers) + handlers)
+        queue_listener.handlers = tuple(list(queue_listener.handlers) + handlers)
 
     # Remove logger's handlers and replace with single queue handler.
     del logger.handlers[:]
