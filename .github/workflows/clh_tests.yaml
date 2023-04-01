@@ -3,10 +3,10 @@ name: Concurrent Log Handler (CLH) tests
 on:
   push:
     branches:
-      - main  # or the name of your primary branch
+      - master  # or the name of your primary branch
   pull_request:
     branches:
-      - main  # or the name of your primary branch
+      - master  # or the name of your primary branch
 
 jobs:
   build:
