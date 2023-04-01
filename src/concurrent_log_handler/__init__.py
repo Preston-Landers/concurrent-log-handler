@@ -444,12 +444,12 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 )
             encoding = self.encoding or "utf-8"
 
-        if not isinstance(msg, unicode):
-            msg = unicode(msg, encoding, policy)
+        if not isinstance(msg, unicode):  # noqa: F821
+            msg = unicode(msg, encoding, policy)  # noqa: F821
 
         # Add in the terminator.
-        if not isinstance(term, unicode):
-            term = unicode(term, encoding, policy)
+        if not isinstance(term, unicode):  # noqa: F821
+            term = unicode(term, encoding, policy)  # noqa: F821
         msg = msg + term
         stream.write(msg)
 
