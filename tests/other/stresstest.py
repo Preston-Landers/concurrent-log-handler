@@ -31,7 +31,7 @@ from concurrent_log_handler import ConcurrentRotatingFileHandler, PY2, randbits
 __version__ = "$Id$"
 __author__ = "Lowell Alleman"
 
-# ruff: noqa: F821
+# ruff: noqa: F821, E501
 
 # The total amount of rotated files to keep through the test run. Any data accumulated
 # before this is reached gets lost. It needs to be high enough so that all loop iterations

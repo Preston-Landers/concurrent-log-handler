@@ -69,6 +69,10 @@ from logging.handlers import BaseRotatingHandler
 from portalocker import LOCK_EX, lock, unlock
 from concurrent_log_handler.__version__ import __author__, __version__
 
+# E501 - lines too long
+# ruff: noqa: E501
+
+
 try:
     import pwd
     import grp
@@ -107,11 +111,12 @@ if sys.version_info[0] == 2:
 
 
 class ConcurrentRotatingFileHandler(BaseRotatingHandler):
-    """
-    Handler for logging to a set of files, which switches from one file to the
+    f"""Handler for logging to a set of files, which switches from one file to the
     next when the current file reaches a certain size. Multiple processes can
     write to the log file concurrently, but this may mean that the file will
     exceed the given size.
+
+    Version {__version__} by {__author__}.
     """
 
     def __init__(
