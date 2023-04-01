@@ -2,6 +2,7 @@
 build
 dist
 test_output
+output_tests
 setuptools-*.tar.gz
 setuptools-*.egg
 src/concurrent_log_handler.egg-info
@@ -13,3 +14,5 @@ env_py27
 env37
 *.log*
 .__*.lock
+stress_test.log*
+.eggs

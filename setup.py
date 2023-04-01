@@ -72,12 +72,20 @@ setup(
     long_description_content_type="text/markdown",
     # platforms=["nt", "posix"],
     install_requires=install_requires,
+    extras_require={
+        "dev": ['pytest', 'tox', 'black'],
+    },
+    tests_require=['pytest'],
     keywords=package_keywords,
     classifiers=classifiers.splitlines(),
     zip_safe=True,
-    # test_suite=unittest.TestSuite,
     **extra
 )
+
+# Local installation for development:
+# virtualenv venv
+# (activate)
+# pip install -e .[dev]
 
 # Development build:
 # python setup.py clean --all build sdist bdist_wheel

@@ -69,10 +69,33 @@ If installing from source, use the following command:
 
     python setup.py install
 
-To build a Python "wheel" for distribution, use the following:
+### Developer setup
 
+If you plan to modify the code, you should follow this procedure:
+
+- Clone the repository
+- Create a virtual environment (`venv`) and activate it.
+- Install the package in editable mode with the [dev] option:
+
+    pip install -e .[dev]
+
+- Run the tests:
+
+    tox 
+
+  Or manually run a single pass of the stress test with specific options:
+  
+    python tests/stresstest.py --help
+    python tests/stresstest.py --gzip --num-processes 12 --log-calls=5000
+
+- To build a Python "wheel" for distribution, use the following:
+
+    pip install twine
     python setup.py clean --all bdist_wheel
     # Copy the .whl file from under the "dist" folder
+    # or upload with twine:
+    twine upload dist/concurrent-log-handler-0.9.21.tar.gz
+    twine upload dist/concurrent_log_handler-0.9.21-py2.py3-none-any.whl
 
 ### Important Requirements
 
