@@ -69,10 +69,6 @@ from logging.handlers import BaseRotatingHandler
 from portalocker import LOCK_EX, lock, unlock
 from concurrent_log_handler.__version__ import __author__, __version__
 
-# E501 - lines too long
-# ruff: noqa: E501
-
-
 try:
     import pwd
     import grp
@@ -632,6 +628,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
 # Publish this class to the "logging.handlers" module so that it can be use
 # from a logging config file via logging.config.fileConfig().
-import logging.handlers
+import logging.handlers  # noqa: E402
 
 logging.handlers.ConcurrentRotatingFileHandler = ConcurrentRotatingFileHandler

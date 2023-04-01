@@ -78,7 +78,7 @@ setup(
     # platforms=["nt", "posix"],
     install_requires=install_requires,
     extras_require={
-        "dev": ["pytest", "tox", "black"],
+        "dev": ["pytest", "tox", "black", "ruff"],
     },
     tests_require=["pytest"],
     keywords=package_keywords,

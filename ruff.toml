@@ -1,0 +1,6 @@
+# Never enforce `E501` (line length violations).
+ignore = ["E501"]
+
+[per-file-ignores]
+"setup.py" = ["F401"]
+"src/concurrent_log_handler/queue.py" = ["E722"]
