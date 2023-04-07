@@ -52,14 +52,13 @@ for testing, patches are welcome.
 
 See the README file for an example usage of this module.
 
-This module supports Python 2.6 and later.
-
+This module supports Python 3.6 and later.
+(Support for older version was dropped in 0.9.23.)
 """
 
 import errno
 import io
 import os
-import sys
 import time
 import traceback
 import warnings
@@ -68,6 +67,7 @@ from logging.handlers import BaseRotatingHandler
 
 # noinspection PyPackageRequirements
 from portalocker import LOCK_EX, lock, unlock
+
 from concurrent_log_handler.__version__ import __author__, __version__
 
 try:
@@ -102,16 +102,13 @@ __all__ = [
     "ConcurrentRotatingFileHandler",
 ]
 
-PY2 = False
-if sys.version_info[0] == 2:
-    PY2 = True
-
-
 class ConcurrentRotatingFileHandler(BaseRotatingHandler):
-    """Handler for logging to a set of files, which switches from one file to the
+    f"""Handler for logging to a set of files, which switches from one file to the
     next when the current file reaches a certain size. Multiple processes can
     write to the log file concurrently, but this may mean that the file will
     exceed the given size.
+
+    Version {__version__} by {__author__}.
     """
 
     def __init__(
@@ -132,7 +129,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         unicode_error_policy="ignore",
         lock_file_directory=None,
     ):
-        """
+        f"""
         Open the specified file and use it as the stream for logging.
 
         :param filename: name of the log file to output to.
@@ -189,6 +186,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         different values for 'maxBytes' or 'backupCount', then odd behavior is
         expected. The same is true if this class is used by one application, but
         the RotatingFileHandler is used by another.
+        
+        Version {__version__} by {__author__}.
         """
         # noinspection PyTypeChecker
         self.stream = None
@@ -281,7 +280,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             return
         lock_file = self.lockFilename
         self._console_log(
-            "concurrent-log-handler %s opening %s" % (hash(self), lock_file),
+            f"concurrent-log-handler {hash(self)} opening {lock_file}",
             stack=False,
         )
 
@@ -355,16 +354,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         if stack:
             stack_str = ":\n" + "".join(traceback.format_stack())
         asctime = time.asctime()
-        print(
-            "[%s %s %s] %s%s"
-            % (
-                tid,
-                pid,
-                asctime,
-                msg,
-                stack_str,
-            )
-        )
+        print(f"[{tid} {pid} {asctime}] {msg}{stack_str}")
 
     def emit(self, record):
         """
@@ -384,7 +374,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     if self.shouldRollover(record):
                         self.doRollover()
                 except Exception as e:
-                    self._console_log("Unable to do rollover: %s" % (e,), stack=True)
+                    self._console_log(f"Unable to do rollover: {e}", stack=True)
                     # Continue on anyway
 
                 self.do_write(msg)
@@ -406,52 +396,24 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.stream = self.do_open()
         stream = self.stream
 
-        if PY2:
-            self.do_write_py2(msg)
-        else:
-            msg = msg + self.terminator
+        msg = msg + self.terminator
+        try:
+            stream.write(msg)
+        except UnicodeError:
+            # Try to emit in a form acceptable to the output encoding
+            # The unicode_error_policy determines whether this is lossy.
             try:
+                encoding = getattr(stream, "encoding", self.encoding or "us-ascii")
+                msg_bin = msg.encode(encoding, self.unicode_error_policy)
+                msg = msg_bin.decode(encoding, self.unicode_error_policy)
                 stream.write(msg)
             except UnicodeError:
-                # Try to emit in a form acceptable to the output encoding
-                # The unicode_error_policy determines whether this is lossy.
-                try:
-                    encoding = getattr(stream, "encoding", self.encoding or "us-ascii")
-                    msg_bin = msg.encode(encoding, self.unicode_error_policy)
-                    msg = msg_bin.decode(encoding, self.unicode_error_policy)
-                    stream.write(msg)
-                except UnicodeError:
-                    # self._console_log(str(e))
-                    raise
+                # self._console_log(str(e))
+                raise
 
         stream.flush()
         self._close()
         return
-
-    # noinspection PyCompatibility,PyUnresolvedReferences
-    def do_write_py2(self, msg):
-        stream = self.stream
-        term = self.terminator
-        policy = self.unicode_error_policy
-
-        encoding = getattr(stream, "encoding", None)
-
-        # as far as I can tell, this should always be set from io.open, but just in case...
-        if not encoding:
-            if not self.encoding:
-                self._console_log(
-                    "Warning, unable to determine encoding of logging stream; assuming utf-8"
-                )
-            encoding = self.encoding or "utf-8"
-
-        if not isinstance(msg, unicode):  # noqa: F821
-            msg = unicode(msg, encoding, policy)  # noqa: F821
-
-        # Add in the terminator.
-        if not isinstance(term, unicode):  # noqa: F821
-            term = unicode(term, encoding, policy)  # noqa: F821
-        msg = msg + term
-        stream.write(msg)
 
     def _do_lock(self):
         if self.is_locked:
@@ -467,9 +429,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 except Exception:
                     continue
             else:
-                raise RuntimeError(
-                    "Cannot acquire lock after %s attempts" % (self.maxLockAttempts,)
-                )
+                raise RuntimeError(f"Cannot acquire lock after {self.maxLockAttempts} attempts")
         else:
             self._console_log("No self.stream_lock to lock", stack=True)
 
@@ -507,24 +467,21 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             return
 
         # Determine if we can rename the log file or not. Windows refuses to
-        # rename an open file, Unix is inode base so it doesn't care.
+        # rename an open file, Unix is inode base, so it doesn't care.
 
         # Attempt to rename logfile to tempname:
         # There is a slight race-condition here, but it seems unavoidable
         tmpname = None
         while not tmpname or os.path.exists(tmpname):
-            tmpname = "%s.rotate.%08d" % (self.baseFilename, randbits(64))
+            tmpname = f"{self.baseFilename}.rotate.{randbits(64):08}"
         try:
             # Do a rename test to determine if we can successfully rename the log file
             os.rename(self.baseFilename, tmpname)
 
             if self.use_gzip:
                 self.do_gzip(tmpname)
-        except (IOError, OSError):
-            exc_value = sys.exc_info()[1]
-            self._console_log(
-                "rename failed.  File in use? exception=%s" % (exc_value,), stack=True
-            )
+        except (IOError, OSError) as e:
+            self._console_log(f"rename failed.  File in use? e={e}", stack=True)
             return
 
         gzip_ext = ""
@@ -532,7 +489,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             gzip_ext = ".gz"
 
         def do_rename(source_fn, dest_fn):
-            self._console_log("Rename %s -> %s" % (source_fn, dest_fn + gzip_ext))
+            self._console_log(f"Rename {source_fn} -> {dest_fn + gzip_ext}")
             if os.path.exists(dest_fn):
                 os.remove(dest_fn)
             if os.path.exists(dest_fn + gzip_ext):
@@ -555,8 +512,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         do_renames = []
         for i in range(1, self.backupCount):
-            sfn = self.rotation_filename("%s.%d" % (self.baseFilename, i))
-            dfn = self.rotation_filename("%s.%d" % (self.baseFilename, i + 1))
+            sfn = self.rotation_filename(f"{self.baseFilename}.{i}")
+            dfn = self.rotation_filename(f"{self.baseFilename}.{i + 1}")
             if os.path.exists(sfn + gzip_ext):
                 do_renames.append((sfn, dfn))
             else:
@@ -614,7 +571,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     gzip_fh.write(data)
 
         os.remove(input_filename)
-        self._console_log("#gzipped: %s" % (out_filename,), stack=False)
+        self._console_log(f"#gzipped: {out_filename}", stack=False)
         return
 
     def _do_chown_and_chmod(self, filename):
@@ -625,7 +582,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             os.chmod(filename, self.chmod)
 
 
-# Publish this class to the "logging.handlers" module so that it can be use
+# Publish this class to the "logging.handlers" module so that it can be used
 # from a logging config file via logging.config.fileConfig().
 import logging.handlers  # noqa: E402
 

@@ -14,6 +14,9 @@ https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
 
 Summary of other changes:
 
+* New: requires Python 3.6 or higher.
+  * If you require support for Python 2.7, use version 
+    [0.9.22](https://github.com/Preston-Landers/concurrent-log-handler/releases/tag/0.9.22). 
 * Renamed package to `concurrent_log_handler` (abbreviated CLH in this file.)
 * Provide `use_gzip` option to compress rotated logs
 * Support for Windows
@@ -21,8 +24,8 @@ Summary of other changes:
   Note: file locking is advisory, not a hard lock against external processes
 * More secure generation of random numbers for temporary filenames
 * Change the name of the lockfile to have .__ in front of it.
-* Provide a QueueListener / QueueHandler implementation for 
-  handling log events in a background thread. Optional: requires Python 3. 
+* Provide an optional QueueListener / QueueHandler implementation for 
+  handling log events in a background thread. 
 * Allow setting owner and mode permissions of rollover file on Unix
 * Depends on `portalocker` package, which (on Windows only) depends on `PyWin32`
 

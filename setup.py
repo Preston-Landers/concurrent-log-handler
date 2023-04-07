@@ -35,8 +35,14 @@ Topic :: System :: Logging
 Operating System :: POSIX
 Operating System :: Microsoft :: Windows
 Programming Language :: Python
-Programming Language :: Python :: 2.7
 Programming Language :: Python :: 3
+Programming Language :: Python :: 3.6
+Programming Language :: Python :: 3.7
+Programming Language :: Python :: 3.8
+Programming Language :: Python :: 3.9
+Programming Language :: Python :: 3.10
+Programming Language :: Python :: 3.11
+Programming Language :: Python :: 3.12
 Topic :: Software Development :: Libraries :: Python Modules
 License :: OSI Approved :: Apache Software License
 """
@@ -45,11 +51,8 @@ package_keywords = (
     "logging, windows, linux, unix, rotate, QueueHandler, QueueListener, portalocker"
 )
 
-# https://github.com/Preston-Landers/concurrent-log-handler/issues/28
-# If Python 2, don't allow fulfillment with portalocker 2.0 as it won't work
 install_requires = [
-    'portalocker<=1.7.1; python_version < "3"',
-    'portalocker>=1.4.0; python_version >= "3"',
+    'portalocker>=1.6.0',
 ]
 
 # use windows because mac os has sub string 'win'
@@ -61,10 +64,6 @@ if sys.platform.startswith("windows"):
         # version 223 introduced ability to install from pip
         install_requires.append("pywin32>=223")
 
-dev_extras = ["pytest", "tox"]
-if sys.version_info.major > 2:
-    dev_extras.extend(["black", "ruff"])
-
 setup(
     name=about["__title__"],
     version=about["__version__"],
@@ -74,6 +73,7 @@ setup(
     package_dir={
         "": "src",
     },
+    python_requires=">=3.6",
     url=about["__url__"],
     license=about["__license__"],
     description=about["__description__"],
@@ -82,7 +82,7 @@ setup(
     # platforms=["nt", "posix"],
     install_requires=install_requires,
     extras_require={
-        "dev": dev_extras,
+        "dev": ["pytest", "tox", "black", "ruff"],
     },
     tests_require=["pytest"],
     keywords=package_keywords,

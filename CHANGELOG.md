@@ -1,5 +1,8 @@
 # Change Log
 
+- 0.9.23:
+  - Begin requiring Python 3.6 or higher.
+
 - 0.9.22:
   - Fix Python 2.7 compatibility (yet again)
   - Important note: this is the FINAL release which will support Python 2.7. 
