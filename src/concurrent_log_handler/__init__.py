@@ -59,6 +59,7 @@ This module supports Python 3.6 and later.
 import errno
 import io
 import os
+import sys
 import time
 import traceback
 import warnings
@@ -645,9 +646,14 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         Please note that when size-based rotation is done, it still uses the naming scheme
         of the time-based rotation. If multiple rotations had to be done within the timeframe of
         the time-based rollover name, then a number like ".1" will be appended to the end of the name.
+
+        Note that `errors` is ignored unless using Python 3.9 or later.
         """
         if "mode" in kwargs:
             del kwargs["mode"]
+        trfh_kwargs = {}
+        if sys.version_info >= (3, 9):
+            trfh_kwargs["errors"] = errors
         TimedRotatingFileHandler.__init__(
             self,
             filename,
@@ -658,7 +664,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             delay=delay,
             utc=utc,
             atTime=atTime,
-            errors=errors,
+            **trfh_kwargs,
         )
         self.clh = ConcurrentRotatingFileHandler(
             filename,
