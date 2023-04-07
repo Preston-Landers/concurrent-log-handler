@@ -402,13 +402,13 @@ def main():
         "--when",
         type=str,
         default="s",
-        help=f"Time interval for timed rotation (default: 's')",
+        help="Time interval for timed rotation (default: 's')",
     )
     parser.add_argument(
         "--interval",
         type=int,
         default=10,
-        help=f"Interval for timed rotation (default: 10)",
+        help="Interval for timed rotation (default: 10)",
     )
 
     args = parser.parse_args()
