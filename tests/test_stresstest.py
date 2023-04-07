@@ -54,7 +54,7 @@ TEST_CASES = {
             }
         ),
     ),
-    "use_timed=True, interval=3, log_calls=5_000, use_gzip=True, debug=True": TestOptions(
+    "use_timed=True, interval=3, log_calls=5_000, debug=True": TestOptions(
         use_timed=True,
         log_calls=5_000,
         min_rollovers=5,
@@ -77,6 +77,35 @@ TEST_CASES = {
             }
         ),
     ),
+    "use_timed=True, maxBytes=100KiB, interval=1, log_calls=6_000, debug=True": TestOptions(
+        use_timed=True,
+        log_calls=6_000,
+        min_rollovers=20,
+        log_opts=TestOptions.default_timed_log_opts(
+            {
+                "maxBytes": 1024 * 100,
+                "interval": 1,
+                "debug": True,
+            }
+        ),
+    ),
+    "use_timed=True, maxBytes=100KiB, interval=2, log_calls=5_000, use_gzip=True": TestOptions(
+        use_timed=True,
+        log_calls=5_000,
+        min_rollovers=20,
+        log_opts=TestOptions.default_timed_log_opts(
+            {
+                "maxBytes": 1024 * 100,
+                "interval": 2,
+                "use_gzip": True,
+                "debug": True,
+            }
+        ),
+    ),
+    # TODO: it would be good to have some test cases that verify that backupCount is not exceeded.
+
+    # Testing time intervals other than seconds is difficult because the tests would
+    # take hours unless we find a way to mock things.
 }
 
 

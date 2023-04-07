@@ -73,7 +73,7 @@ class TestOptions:
     @classmethod
     def default_timed_log_opts(cls, override_values: Optional[Dict] = None) -> dict:
         rv = {
-            # "maxBytes": 1024 * 10,
+            "maxBytes": 0,
             "when": "S",
             "interval": 3,
             "backupCount": 2000,
@@ -169,7 +169,7 @@ def worker_process(test_opts: TestOptions, process_id: int, rollover_counter):
     rollover_counter.increment(file_handler.num_rollovers)
 
 
-def validate_log_file(test_opts: TestOptions) -> bool:
+def validate_log_file(test_opts: TestOptions, run_time: float) -> bool:
     process_tracker = {i: dict() for i in range(test_opts.num_processes)}
 
     # Sort log files, starting with the most recent backup
@@ -177,6 +177,7 @@ def validate_log_file(test_opts: TestOptions) -> bool:
     all_log_files = sorted(glob.glob(f"{log_path}*"), reverse=True)
 
     encoding = test_opts.log_opts["encoding"] or "utf-8"
+    chars_read = 0
 
     for current_log_file in all_log_files:
         opener = open
@@ -188,6 +189,7 @@ def validate_log_file(test_opts: TestOptions) -> bool:
         with opener(current_log_file, "rb") as file:
             for line_no, line in enumerate(file):
                 line = line.decode(encoding)
+                chars_read += len(line)
                 parts = line.strip().split(" - ")
                 message = parts[-1]
                 process_id, message_id, sub_message = message.split("-")
@@ -215,7 +217,10 @@ def validate_log_file(test_opts: TestOptions) -> bool:
                 f"len(message_ids) {len(message_ids)} != log_calls {log_calls}"
             )
             return False
-
+    print(
+        f"{run_time:.2f} seconds to read {chars_read} chars "
+        f"from {len(all_log_files)} files ({chars_read / run_time:.2f} chars/sec)"
+    )
     return True
 
 
@@ -229,6 +234,8 @@ def run_stress_test(test_opts: TestOptions) -> int:
     processes = []
     rollover_counter = SharedCounter()
 
+    start_time = time.time()
+
     for i in range(test_opts.num_processes):
         p = multiprocessing.Process(
             target=worker_process, args=(test_opts, i, rollover_counter)
@@ -238,6 +245,8 @@ def run_stress_test(test_opts: TestOptions) -> int:
 
     for p in processes:
         p.join()
+
+    end_time = time.time()
 
     # Each test should trigger some minimum number of rollovers.
     if (
@@ -255,7 +264,7 @@ def run_stress_test(test_opts: TestOptions) -> int:
     )
 
     # Check for any omissions or duplications.
-    if validate_log_file(test_opts):
+    if validate_log_file(test_opts, end_time - start_time):
         print("Stress test passed.")
         return 0
     else:

@@ -52,7 +52,7 @@ package_keywords = (
 )
 
 install_requires = [
-    'portalocker>=1.6.0',
+    "portalocker>=1.6.0",
 ]
 
 # use windows because mac os has sub string 'win'

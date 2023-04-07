@@ -103,6 +103,7 @@ __all__ = [
     "ConcurrentTimedRotatingFileHandler",
 ]
 
+
 class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     f"""Handler for logging to a set of files, which switches from one file to the
     next when the current file reaches a certain size. Multiple processes can
@@ -187,7 +188,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         different values for 'maxBytes' or 'backupCount', then odd behavior is
         expected. The same is true if this class is used by one application, but
         the RotatingFileHandler is used by another.
-        
+
         Version {__version__} by {__author__}.
         """
         # noinspection PyTypeChecker
@@ -198,7 +199,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.umask = umask
         self._set_uid = None
         self._set_gid = None
-        self.use_gzip = True if gzip and use_gzip else False
         self._rotateFailed = False
         self.maxBytes = maxBytes
         self.backupCount = backupCount
@@ -398,7 +398,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     if self.shouldRollover(record):
                         self.doRollover()
                 except Exception as e:
-                    self._console_log(f"Unable to do rollover: {e}\n{traceback.format_exc()}")
+                    self._console_log(
+                        f"Unable to do rollover: {e}\n{traceback.format_exc()}"
+                    )
                     # Continue on anyway
 
                 self.do_write(msg)
@@ -454,7 +456,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 except Exception:
                     continue
             else:
-                raise RuntimeError(f"Cannot acquire lock after {self.maxLockAttempts} attempts")
+                raise RuntimeError(
+                    f"Cannot acquire lock after {self.maxLockAttempts} attempts"
+                )
         else:
             self._console_log("No self.stream_lock to lock", stack=True)
 
@@ -510,9 +514,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._console_log(f"rename failed.  File in use? e={e}", stack=True)
             return
 
-        gzip_ext = ""
-        if self.use_gzip:
-            gzip_ext = ".gz"
+        gzip_ext = ".gz" if self.use_gzip else ""
 
         def do_rename(source_fn, dest_fn):
             self._console_log(f"Rename {source_fn} -> {dest_fn + gzip_ext}")
@@ -623,16 +625,29 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         utc=False,
         atTime=None,
         errors=None,
+        maxBytes=0,
+        use_gzip=False,
+        owner=None,
+        chmod=None,
+        umask=None,
+        newline=None,
+        terminator="\n",
+        unicode_error_policy="ignore",
+        lock_file_directory=None,
         **kwargs,
     ):
         """A time-based rotating log handler that supports concurrent access across
         multiple processes or hosts (using logs on a shared network drive).
 
-        TODO:
-            - add support for a combination of time and size-based rotation
-
-        WARNING: if you only want time-based rollover and NOT also size-based, set maxBytes=0.
+        You can also include size-based rotation by setting maxBytes > 0.
+        WARNING: if you only want time-based rollover and NOT also size-based, set maxBytes=0,
+        which is already the default.
+        Please note that when size-based rotation is done, it still uses the naming scheme
+        of the time-based rotation. If multiple rotations had to be done within the timeframe of
+        the time-based rollover name, then a number like ".1" will be appended to the end of the name.
         """
+        if "mode" in kwargs:
+            del kwargs["mode"]
         TimedRotatingFileHandler.__init__(
             self,
             filename,
@@ -645,15 +660,21 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             atTime=atTime,
             errors=errors,
         )
-        if "mode" in kwargs:
-            del kwargs["mode"]
         self.clh = ConcurrentRotatingFileHandler(
             filename,
             mode="a",
             backupCount=backupCount,
             encoding=encoding,
             delay=delay,
-            maxBytes=0,
+            maxBytes=maxBytes,
+            use_gzip=use_gzip,
+            owner=owner,
+            chmod=chmod,
+            umask=umask,
+            newline=newline,
+            terminator=terminator,
+            unicode_error_policy=unicode_error_policy,
+            lock_file_directory=lock_file_directory,
             **kwargs,
         )
         self.num_rollovers = 0
@@ -769,14 +790,13 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         # Read the latest rollover time from the file
         self.read_rollover_time()
 
-        # TODO: can't also use size based rollover... (revisit)
         do_rollover = False
         if super(ConcurrentTimedRotatingFileHandler, self).shouldRollover(record):
             self._console_log("Rolling over because of time")
             do_rollover = True
-        # elif self.clh.shouldRollover(record):
-        #     self.clh._console_log("Rolling over because of size")
-        #     do_rollover = True
+        elif self.clh.shouldRollover(record):
+            self.clh._console_log("Rolling over because of size")
+            do_rollover = True
         if do_rollover:
             return True
         return False
@@ -812,15 +832,24 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         dfn = self.rotation_filename(
             self.baseFilename + "." + time.strftime(self.suffix, timeTuple)
         )
-        if os.path.exists(dfn):
-            os.remove(dfn)
+
+        gzip_ext = ".gz" if self.clh.use_gzip else ""
+
+        counter = 0
+        while os.path.exists(dfn + gzip_ext):
+            counter += 1
+            ending = f".{counter-1}{gzip_ext}"
+            if dfn.endswith(ending):
+                dfn = dfn[: -len(ending)]
+            dfn = f"{dfn}.{counter}"
+
+        # if os.path.exists(dfn):
+        #     os.remove(dfn)
 
         self.rotate(self.baseFilename, dfn)
 
-        gzip_ext = ""
         if self.clh.use_gzip:
             self.clh.do_gzip(dfn)
-            gzip_ext = ".gz"
 
         if self.backupCount > 0:
             for s in self.getFilesToDelete():

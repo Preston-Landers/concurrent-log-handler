@@ -2,6 +2,8 @@
 
 - 0.9.23:
   - Begin requiring Python 3.6 or higher.
+  - Implements a `ConcurrentTimedRotatingFileHandler` class which provides both time and/or size
+    based rotation. See the [README.md](./README.md#time-based-rotation-settings) for details. 
 
 - 0.9.22:
   - Fix Python 2.7 compatibility (yet again)
