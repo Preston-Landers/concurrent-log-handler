@@ -66,6 +66,7 @@ import warnings
 from contextlib import contextmanager
 from logging.handlers import BaseRotatingHandler
 
+# noinspection PyPackageRequirements
 from portalocker import LOCK_EX, lock, unlock
 from concurrent_log_handler.__version__ import __author__, __version__
 
@@ -107,12 +108,10 @@ if sys.version_info[0] == 2:
 
 
 class ConcurrentRotatingFileHandler(BaseRotatingHandler):
-    f"""Handler for logging to a set of files, which switches from one file to the
+    """Handler for logging to a set of files, which switches from one file to the
     next when the current file reaches a certain size. Multiple processes can
     write to the log file concurrently, but this may mean that the file will
     exceed the given size.
-
-    Version {__version__} by {__author__}.
     """
 
     def __init__(

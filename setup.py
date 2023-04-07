@@ -61,6 +61,10 @@ if sys.platform.startswith("windows"):
         # version 223 introduced ability to install from pip
         install_requires.append("pywin32>=223")
 
+dev_extras = ["pytest", "tox"]
+if sys.version_info.major > 2:
+    dev_extras.extend(["black", "ruff"])
+
 setup(
     name=about["__title__"],
     version=about["__version__"],
@@ -78,7 +82,7 @@ setup(
     # platforms=["nt", "posix"],
     install_requires=install_requires,
     extras_require={
-        "dev": ["pytest", "tox", "black", "ruff"],
+        "dev": dev_extras,
     },
     tests_require=["pytest"],
     keywords=package_keywords,

@@ -1,5 +1,10 @@
 # Change Log
 
+- 0.9.22:
+  - Fix Python 2.7 compatibility (yet again)
+  - Important note: this is the FINAL release which will support Python 2.7. 
+    Future versions will support Python 3.6+ only. 
+
 - 0.9.21:
   - Added new optional parameter "lock_file_directory"
     - Creates given directory, if it does not exist.
