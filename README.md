@@ -50,6 +50,7 @@ instead of CLH's model where each process locks and writes to the log file.
 
 Please note that CLH only does size-based rotation at this time. There is a request open for
 time-based rotation.
+TODO: update docs about this
 
 https://github.com/Preston-Landers/concurrent-log-handler/issues/23
 
@@ -198,6 +199,16 @@ config file, but earlier versions of Python only accept positional args.
 
 Note: you must have an `import concurrent_log_handler` before you call fileConfig(). For
 more information see http://docs.python.org/lib/logging-config-fileformat.html
+
+### Limitations
+
+The size-based rotation limit (`maxBytes`) is not strict. The files may become slightly
+larger than `maxBytes`. How much larger depends on the size of the log message being
+written when the rollover occurs. 
+
+By contrast, the base `RotatingLogHandler` class tries to ensure that the log file is
+always kept under `maxBytes` taking into account the size of the current log message being 
+written. This limitation may be changed in the future.
 
 ### Recommended Settings
 
