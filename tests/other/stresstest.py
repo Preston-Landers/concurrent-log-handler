@@ -1,6 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python  # noqa: INP001
 # -*- coding: utf-8; mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vim: fileencoding=utf-8 tabstop=4 expandtab shiftwidth=4
+
+# ruff: noqa: RET504, S311, S603
 
 """ stresstest.py:  A stress-tester for ConcurrentRotatingFileHandler
 
@@ -26,7 +28,7 @@ from subprocess import Popen
 from time import sleep
 
 # local lib; for testing
-from concurrent_log_handler import ConcurrentRotatingFileHandler, PY2, randbits
+from concurrent_log_handler import PY2, ConcurrentRotatingFileHandler, randbits
 
 __version__ = "$Id$"
 __author__ = "Lowell Alleman"
@@ -92,7 +94,7 @@ class RotateLogStressTester:
         return rv
 
     def start(self):
-        from logging import getLogger, FileHandler, Formatter, DEBUG
+        from logging import DEBUG, FileHandler, Formatter, getLogger
 
         self.log = getLogger(self.name)
         self.log.setLevel(DEBUG)
@@ -259,7 +261,7 @@ parser.add_option(
     action="store",
     type="int",
     default=5000,
-    help="Number of logging entries to write to each log file.  " "Default is %default",
+    help="Number of logging entries to write to each log file. Default is %d",
 )
 parser.add_option("--random-sleep-mode", action="store_true", default=False)
 parser.add_option("--debug", action="store_true", default=False)
@@ -275,7 +277,7 @@ parser.add_option(
 
 def main_client(args):
     (options, args) = parser.parse_args(args)
-    if len(args) != 2:
+    if len(args) != 2:  # noqa: PLR2004
         raise ValueError("Require 2 arguments.  We have %d args" % len(args))
     (shared, client) = args
 
@@ -350,7 +352,6 @@ class TestManager:
         return True
 
 
-# noinspection PyUnresolvedReferences
 def unified_diff(a, b, out=sys.stdout, out2=None):
     import difflib
 
@@ -364,7 +365,7 @@ def unified_diff(a, b, out=sys.stdout, out2=None):
         #     line = line.encode(ENCODING)
         if PY2:
             if not isinstance(line, unicode):
-                line = unicode(line, ENCODING)
+                line = unicode(line, ENCODING)  # noqa: PLW2901
             line_out = line.encode(out.encoding, "ignore").decode(out.encoding)
             out.write(line_out)
         else:
@@ -373,7 +374,7 @@ def unified_diff(a, b, out=sys.stdout, out2=None):
             dfile.write(line)
 
 
-def main_runner(args):
+def main_runner(args):  # noqa: PLR0915
     parser.add_option(
         "--processes",
         metavar="NUM",
@@ -388,7 +389,7 @@ def main_runner(args):
         action="store",
         type="float",
         default=2.5,
-        help="Wait SECS before spawning next processes.  " "Default: %default",
+        help="Wait SECS before spawning next processes.  Default: %d",
     )
     parser.add_option(
         "-p",
@@ -396,7 +397,7 @@ def main_runner(args):
         metavar="DIR",
         action="store",
         default="test_output",
-        help="Path to a temporary directory.  Default: '%default'",
+        help="Path to a temporary directory.  Default: '%d'",
     )
     parser.add_option(
         "-k",
@@ -459,7 +460,7 @@ def main_runner(args):
     # Check children exit codes
     if not manager.checkExitCodes():
         sys.stderr.write(
-            "One or more of the child process has failed.\n" "Aborting test.\n"
+            "One or more of the child process has failed.\n Aborting test.\n"
         )
         sys.exit(2)
 

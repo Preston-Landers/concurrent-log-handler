@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
-# vim: fileencoding=utf-8 tabstop=4 expandtab shiftwidth=4
 
 # Copyright 2017 Journyx, Inc., and other contributors
 
@@ -22,14 +20,12 @@ https://github.com/dgilland/logconfig/blob/master/logconfig/utils.py
 Additional code provided by Journyx, Inc. http://www.journyx.com
 """
 
+import asyncio
 import atexit
 import logging
-
-# noinspection PyCompatibility
 import queue
 import sys
 from logging.handlers import QueueHandler, QueueListener
-import asyncio
 
 __author__ = "Preston Landers <planders@gmail.com>"
 
@@ -62,9 +58,7 @@ class AsyncQueueListener(QueueListener):
 
 
 def setup_logging_queues():
-    global GLOBAL_LOGGER_HANDLERS
-
-    if sys.version_info.major < 3:
+    if sys.version_info.major < 3:  # noqa: PLR2004
         raise RuntimeError("This feature requires Python 3.")
 
     queue_listeners = []
@@ -118,13 +112,12 @@ def setup_logging_queues():
 
 def stop_queue_listeners(*listeners):
     for listener in listeners:
-        # noinspection PyBroadException
-        try:
+        try:  # noqa: SIM105
             listener.stop()
             # if sys.stderr:
             #     sys.stderr.write("Stopped queue listener.\n")
             #     sys.stderr.flush()
-        except:
+        except:  # noqa: E722, S110
             pass
             # Don't need this in production...
             # if sys.stderr:
@@ -139,7 +132,6 @@ def get_all_logger_names(include_root=False):
 
     Warning: this is sensitive to internal structures in the standard logging module.
     """
-    # noinspection PyUnresolvedReferences
     rv = list(logging.Logger.manager.loggerDict.keys())
     if include_root:
         rv.insert(0, "")

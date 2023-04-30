@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python  # noqa: INP001
+# ruff: noqa: S311, G004
 
 """
 This is a simple stress test for concurrent_log_handler. It creates a number of processes and each process
@@ -23,7 +24,10 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, Optional
 
-from concurrent_log_handler import ConcurrentRotatingFileHandler
+from concurrent_log_handler import (
+    ConcurrentRotatingFileHandler,
+    ConcurrentTimedRotatingFileHandler,
+)
 from concurrent_log_handler.__version__ import __version__
 
 
@@ -46,11 +50,34 @@ class TestOptions:
     sleep_min: float = field(default=0.0001)
     sleep_max: float = field(default=0.01)
 
+    use_timed: bool = field(default=False)
+    "Use time-based rotation class instead of size-based."
+
+    min_rollovers: int = field(default=70)
+    """Minimum number of rollovers to expect. Useful for testing rollover behavior.
+    Default is 70 which is appropriate for the default test settings. The actual number
+    of rollovers will vary significantly based on the rest of the settings."""
+
     @classmethod
     def default_log_opts(cls, override_values: Optional[Dict] = None) -> dict:
         rv = {
             "maxBytes": 1024 * 10,
-            "backupCount": 1000,
+            "backupCount": 2000,
+            "encoding": "utf-8",
+            "debug": False,
+            "use_gzip": False,
+        }
+        if override_values:
+            rv.update(override_values)
+        return rv
+
+    @classmethod
+    def default_timed_log_opts(cls, override_values: Optional[Dict] = None) -> dict:
+        rv = {
+            "maxBytes": 0,
+            "when": "S",
+            "interval": 3,
+            "backupCount": 2000,
             "encoding": "utf-8",
             "debug": False,
             "use_gzip": False,
@@ -60,30 +87,65 @@ class TestOptions:
         return rv
 
 
-class ConcurrentLogHandlerBuggy(ConcurrentRotatingFileHandler):
+class SharedCounter:
+    def __init__(self, initial_value=0):
+        self.value = multiprocessing.Value("i", initial_value)
+        self.lock = multiprocessing.Lock()
+
+    def increment(self, n=1):
+        with self.lock, self.value.get_lock():
+            self.value.value += n
+
+    def get_value(self):
+        with self.lock, self.value.get_lock():
+            return self.value.value
+
+
+class ConcurrentLogHandlerBuggyMixin:
     def emit(self, record):
         # Introduce a random chance (e.g., 5%) to skip or duplicate a log message
         random_choice = random.randint(1, 100)
 
-        if 1 <= random_choice <= 5:  # 5% chance to skip a log message
+        # 5% chance to skip a log message
+        if 1 <= random_choice <= 5:  # noqa: PLR2004
             return
-        elif 6 <= random_choice <= 10:  # 5% chance to duplicate a log message
+        # 5% chance to duplicate a log message
+        if 6 <= random_choice <= 10:  # noqa: PLR2004
             super().emit(record)
             super().emit(record)
         else:
             super().emit(record)
 
 
-def worker_process(test_opts: TestOptions, process_id: int):
+class ConcurrentLogHandlerBuggy(
+    ConcurrentLogHandlerBuggyMixin, ConcurrentRotatingFileHandler
+):
+    pass
+
+
+class ConcurrentTimedLogHandlerBuggy(
+    ConcurrentLogHandlerBuggyMixin, ConcurrentTimedRotatingFileHandler
+):
+    pass
+
+
+def worker_process(test_opts: TestOptions, process_id: int, rollover_counter):
     logger = logging.getLogger(f"Process-{process_id}")
     logger.setLevel(logging.DEBUG)
     log_opts = test_opts.log_opts
 
-    file_handler_class = (
-        ConcurrentLogHandlerBuggy
-        if test_opts.induce_failure
-        else ConcurrentRotatingFileHandler
-    )
+    if test_opts.use_timed:
+        file_handler_class = (
+            ConcurrentTimedLogHandlerBuggy
+            if test_opts.induce_failure
+            else ConcurrentTimedRotatingFileHandler
+        )
+    else:
+        file_handler_class = (
+            ConcurrentLogHandlerBuggy
+            if test_opts.induce_failure
+            else ConcurrentRotatingFileHandler
+        )
     log_path = os.path.join(test_opts.log_dir, test_opts.log_file)
     file_handler = file_handler_class(log_path, mode="a", **log_opts)
 
@@ -93,6 +155,7 @@ def worker_process(test_opts: TestOptions, process_id: int):
 
     char_choices = string.ascii_letters
     if log_opts["encoding"] == "utf-8":
+        # Note: this can't include a dash (-) because it's used as a delimiter in the log message
         char_choices = (
             string.ascii_letters
             + " \U0001d122\U00024b00\u20a0ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ"
@@ -103,36 +166,48 @@ def worker_process(test_opts: TestOptions, process_id: int):
         logger.debug(f"{process_id}-{i}-{random_str}")
         time.sleep(random.uniform(test_opts.sleep_min, test_opts.sleep_max))
 
+    rollover_counter.increment(file_handler.num_rollovers)
 
-def validate_log_file(test_opts: TestOptions) -> bool:
-    process_tracker = {i: set() for i in range(test_opts.num_processes)}
+
+def validate_log_file(test_opts: TestOptions, run_time: float) -> bool:
+    process_tracker = {i: {} for i in range(test_opts.num_processes)}
 
     # Sort log files, starting with the most recent backup
     log_path = os.path.join(test_opts.log_dir, test_opts.log_file)
     all_log_files = sorted(glob.glob(f"{log_path}*"), reverse=True)
 
     encoding = test_opts.log_opts["encoding"] or "utf-8"
+    chars_read = 0
 
     for current_log_file in all_log_files:
         opener = open
-        if current_log_file.endswith(".gz"):
-            opener = gzip.open
+        if test_opts.log_opts["use_gzip"]:
+            if current_log_file.endswith(".gz"):
+                opener = gzip.open
+            elif current_log_file != log_path:
+                raise AssertionError("use_gzip was set, but log file is not gzipped?")
         with opener(current_log_file, "rb") as file:
-            for line in file:
-                line = line.decode(encoding)
+            for line_no, line in enumerate(file):
+                line = line.decode(encoding)  # noqa: PLW2901
+                chars_read += len(line)
                 parts = line.strip().split(" - ")
                 message = parts[-1]
-                process_id, message_id, _ = message.split("-")
+                process_id, message_id, sub_message = message.split("-")
                 process_id = int(process_id)
                 message_id = int(message_id)
-
+                msg_state = {
+                    "file": current_log_file,
+                    "line_no": line_no,
+                    "line": line,
+                }
                 if message_id in process_tracker[process_id]:
                     print(
-                        f"Error: Duplicate message from Process-{process_id}: {message_id}"
+                        f"""Error: Duplicate message from Process-{process_id}: {message_id}
+{process_tracker[process_id][message_id]} and {msg_state}"""
                     )
                     return False
 
-                process_tracker[process_id].add(message_id)
+                process_tracker[process_id][message_id] = msg_state
 
     log_calls = test_opts.log_calls
     for process_id, message_ids in process_tracker.items():
@@ -142,7 +217,10 @@ def validate_log_file(test_opts: TestOptions) -> bool:
                 f"len(message_ids) {len(message_ids)} != log_calls {log_calls}"
             )
             return False
-
+    print(
+        f"{run_time:.2f} seconds to read {chars_read} chars "
+        f"from {len(all_log_files)} files ({chars_read / run_time:.2f} chars/sec)"
+    )
     return True
 
 
@@ -154,31 +232,56 @@ def run_stress_test(test_opts: TestOptions) -> int:
         os.makedirs(test_opts.log_dir)
 
     processes = []
+    rollover_counter = SharedCounter()
+
+    start_time = time.time()
 
     for i in range(test_opts.num_processes):
-        p = multiprocessing.Process(target=worker_process, args=(test_opts, i))
+        p = multiprocessing.Process(
+            target=worker_process, args=(test_opts, i, rollover_counter)
+        )
         p.start()
         processes.append(p)
 
     for p in processes:
         p.join()
 
-    if validate_log_file(test_opts):
+    end_time = time.time()
+
+    # Each test should trigger some minimum number of rollovers.
+    if (
+        test_opts.min_rollovers
+        and rollover_counter.get_value() < test_opts.min_rollovers
+    ):
+        print(
+            f"Error: {rollover_counter.get_value()} rollovers occurred but "
+            f"we expected at least {test_opts.min_rollovers}."
+        )
+        return 1
+    print(
+        f"All processes finished. (Rollovers: "
+        f"{rollover_counter.get_value()} - min was {test_opts.min_rollovers})"
+    )
+
+    # Check for any omissions or duplications.
+    if validate_log_file(test_opts, end_time - start_time):
         print("Stress test passed.")
         return 0
-    else:
-        print("Stress test failed.")
-        return 1
+    print("Stress test failed.")
+    return 1
 
 
 def delete_log_files(test_opts: TestOptions):
     log_path = os.path.join(test_opts.log_dir, test_opts.log_file)
     log_files_to_remove = glob.glob(f"{log_path}*")
+    _, lock_name = ConcurrentRotatingFileHandler.baseLockFilename(test_opts.log_file)
+    log_files_to_remove.append(os.path.join(test_opts.log_dir, lock_name))
     removed_files = []
     for file in log_files_to_remove:
         try:
-            os.remove(file)
-            removed_files.append(file)
+            if os.path.exists(file):
+                os.remove(file)
+                removed_files.append(file)
         except OSError as e:
             print(f"Error deleting log file {file}: {e}")
     if removed_files:
@@ -197,7 +300,15 @@ def main():
         type=int,
         default=default_log_opts["maxBytes"],
         help=f"Maximum log file size in bytes before rotation "
-        f"(default: {default_log_opts['maxBytes']})",
+        f"(default: {default_log_opts['maxBytes']}). (Ignored if use-timed)",
+    )
+    use_timed_default = TestOptions.__annotations__["use_timed"].default
+    parser.add_argument(
+        "--use-timed",
+        type=int,
+        default=use_timed_default,
+        help=f"Test the timed-based rotation class. "
+        f"(default: {use_timed_default}).",
     )
     log_calls_default = TestOptions.__annotations__["log_calls"].default
     parser.add_argument(
@@ -286,7 +397,37 @@ def main():
         f"(default: {induce_failure_default})",
     )
 
+    parser.add_argument(
+        "--when",
+        type=str,
+        default="s",
+        help="Time interval for timed rotation (default: 's')",
+    )
+    parser.add_argument(
+        "--interval",
+        type=int,
+        default=10,
+        help="Interval for timed rotation (default: 10)",
+    )
+
     args = parser.parse_args()
+    log_opts = {
+        "maxBytes": args.max_bytes,
+        "backupCount": args.max_rotations,
+        "encoding": args.encoding,
+        "debug": args.debug,
+        "use_gzip": args.gzip,
+    }
+    if args.use_timed:
+        log_opts = {
+            "backupCount": args.max_rotations,
+            "encoding": args.encoding,
+            "debug": args.debug,
+            "use_gzip": args.gzip,
+            "when": args.when,
+            "interval": args.interval,
+        }
+
     test_opts = TestOptions(
         log_file=args.filename,
         num_processes=args.num_processes,
@@ -295,13 +436,7 @@ def main():
         sleep_max=args.sleep_max,
         use_asyncio=args.asyncio,
         induce_failure=args.fail,
-        log_opts={
-            "maxBytes": args.max_bytes,
-            "backupCount": args.max_rotations,
-            "encoding": args.encoding,
-            "debug": args.debug,
-            "use_gzip": args.gzip,
-        },
+        log_opts=log_opts,
     )
 
     # Implement the stress test using asyncio queue feature

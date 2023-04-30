@@ -25,7 +25,7 @@ with io.open(
     "r",
     encoding="utf-8",
 ) as fh:
-    exec(fh.read(), about)
+    exec(fh.read(), about)  # noqa: S102 # todo: cleanup
 
 extra = {"use_2to3": False}
 
@@ -52,7 +52,7 @@ package_keywords = (
 )
 
 install_requires = [
-    'portalocker>=1.6.0',
+    "portalocker>=1.6.0",
 ]
 
 # use windows because mac os has sub string 'win'

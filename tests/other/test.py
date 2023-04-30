@@ -1,4 +1,4 @@
-# See stresstest.py for a more intensive test.
+# See stresstest.py for a more intensive test.  # noqa: INP001
 # This is more like a very quick test of basic functionality.
 
 import logging.config
@@ -61,7 +61,7 @@ def get_logging_config():
             },
         },
     }
-    return logconfig_dict
+    return logconfig_dict  # noqa: RET504
 
 
 if __name__ == "__main__":
