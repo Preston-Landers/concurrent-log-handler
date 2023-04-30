@@ -2,7 +2,7 @@
 # -*- coding: utf-8; mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vim: fileencoding=utf-8 tabstop=4 expandtab shiftwidth=4
 
-# ruff: noqa: RET504, S311
+# ruff: noqa: RET504, S311, S603
 
 """ stresstest.py:  A stress-tester for ConcurrentRotatingFileHandler
 
