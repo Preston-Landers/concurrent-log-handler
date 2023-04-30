@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
-# vim: fileencoding=utf-8 tabstop=4 expandtab shiftwidth=4
 #
 # Copyright 2013 Lowell Alleman
 #
@@ -57,7 +55,6 @@ This module supports Python 3.6 and later.
 """
 
 import errno
-import io
 import os
 import sys
 import time
@@ -69,11 +66,11 @@ from logging.handlers import BaseRotatingHandler, TimedRotatingFileHandler
 # noinspection PyPackageRequirements
 from portalocker import LOCK_EX, lock, unlock
 
-from concurrent_log_handler.__version__ import __author__, __version__
+from concurrent_log_handler.__version__ import __author__, __version__  # noqa: F401
 
 try:
-    import pwd
     import grp
+    import pwd
 except ImportError:
     pwd = grp = None
 
@@ -106,15 +103,13 @@ __all__ = [
 
 
 class ConcurrentRotatingFileHandler(BaseRotatingHandler):
-    f"""Handler for logging to a set of files, which switches from one file to the
+    """Handler for logging to a set of files, which switches from one file to the
     next when the current file reaches a certain size. Multiple processes can
     write to the log file concurrently, but this may mean that the file will
     exceed the given size.
-
-    Version {__version__} by {__author__}.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         filename,
         mode="a",
@@ -132,8 +127,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         unicode_error_policy="ignore",
         lock_file_directory=None,
     ):
-        f"""
-        Open the specified file and use it as the stream for logging.
+        """Open the specified file and use it as the stream for logging.
 
         :param filename: name of the log file to output to.
         :param mode: write mode: defaults to 'a' for text append
@@ -189,8 +183,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         different values for 'maxBytes' or 'backupCount', then odd behavior is
         expected. The same is true if this class is used by one application, but
         the RotatingFileHandler is used by another.
-
-        Version {__version__} by {__author__}.
         """
         # noinspection PyTypeChecker
         self.stream = None
@@ -206,7 +198,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.newline = newline
 
         self._debug = debug
-        self.use_gzip = True if gzip and use_gzip else False
+        self.use_gzip = bool(gzip and use_gzip)
         self.gzip_buffer = 8096
         self.maxLockAttempts = 20
 
@@ -216,6 +208,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 "Invalid unicode_error_policy for concurrent_log_handler: "
                 "must be ignore, replace, or strict. Defaulting to ignore.",
                 UserWarning,
+                stacklevel=3,
             )
         self.unicode_error_policy = unicode_error_policy
 
@@ -224,6 +217,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 "concurrent_log_handler parameter `delay` is now ignored and implied as True, "
                 "please remove from your config.",
                 DeprecationWarning,
+                stacklevel=3,
             )
 
         # Construct the handler with the given arguments in "delayed" mode
@@ -259,15 +253,11 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         if lock_file_directory:
             self.__create_lock_directory__(lock_file_directory)
             return os.path.join(lock_file_directory, lock_name)
-        else:
-            return os.path.join(lock_path, lock_name)
+        return os.path.join(lock_path, lock_name)
 
     @staticmethod
     def baseLockFilename(baseFilename):
-        if baseFilename.endswith(".log"):
-            lock_file = baseFilename[:-4]
-        else:
-            lock_file = baseFilename
+        lock_file = baseFilename[:-4] if baseFilename.endswith(".log") else baseFilename
         lock_file += ".lock"
         lock_path, lock_name = os.path.split(lock_file)
         # hide the file on Unix and generally from file completion
@@ -314,7 +304,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 )
         return file
 
-    def _open(self, mode=None):
+    def _open(self, mode=None):  # noqa: ARG002
         # Normally we don't hold the stream open. Only do_open does that
         # which is called from do_write().
         return None
@@ -331,7 +321,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         with self._alter_umask():
             # noinspection PyArgumentList
-            stream = io.open(
+            stream = open(
                 self.baseFilename,
                 mode=mode,
                 encoding=self.encoding,
@@ -382,8 +372,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         print(f"[{tid} {pid} {asctime}] {msg}{stack_str}")
 
     def emit(self, record):
-        """
-        Emit a record.
+        """Emit a record.
 
         Override from parent class to handle file locking for the duration of rollover and write.
         This also does the formatting *before* locks are obtained, in case the format itself does
@@ -447,14 +436,14 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             return  # already locked... recursive?
         self._open_lockfile()
         if self.stream_lock:
-            for i in range(self.maxLockAttempts):
+            for _i in range(self.maxLockAttempts):
                 # noinspection PyBroadException
                 try:
                     lock(self.stream_lock, LOCK_EX)
                     self.is_locked = True
                     # self._console_log("Acquired lock")
                     break
-                except Exception:
+                except Exception:  # noqa: S112
                     continue
             else:
                 raise RuntimeError(
@@ -477,15 +466,14 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._console_log("No self.stream_lock to unlock", stack=True)
 
     def close(self):
-        """
-        Close log stream and stream_lock."""
+        """Close log stream and stream_lock."""
         self._console_log("In close()", stack=True)
         try:
             self._close()
         finally:
             super(ConcurrentRotatingFileHandler, self).close()
 
-    def doRollover(self):
+    def doRollover(self):  # noqa: C901
         """
         Do a rollover, as described in __init__().
         """
@@ -511,7 +499,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
             if self.use_gzip:
                 self.do_gzip(tmpname)
-        except (IOError, OSError) as e:
+        except OSError as e:
             self._console_log(f"rename failed.  File in use? e={e}", stack=True)
             return
 
@@ -593,13 +581,14 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             return
         out_filename = input_filename + ".gz"
 
-        with open(input_filename, "rb") as input_fh:
-            with gzip.open(out_filename, "wb") as gzip_fh:
-                while True:
-                    data = input_fh.read(self.gzip_buffer)
-                    if not data:
-                        break
-                    gzip_fh.write(data)
+        with open(input_filename, "rb") as input_fh, gzip.open(
+            out_filename, "wb"
+        ) as gzip_fh:
+            while True:
+                data = input_fh.read(self.gzip_buffer)
+                if not data:
+                    break
+                gzip_fh.write(data)
 
         os.remove(input_filename)
         self._console_log(f"#gzipped: {out_filename}", stack=False)
@@ -615,7 +604,20 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
 # noinspection PyProtectedMember
 class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
-    def __init__(
+    """A time-based rotating log handler that supports concurrent access across
+    multiple processes or hosts (using logs on a shared network drive).
+
+    You can also include size-based rotation by setting maxBytes > 0.
+    WARNING: if you only want time-based rollover and NOT also size-based, set maxBytes=0,
+    which is already the default.
+    Please note that when size-based rotation is done, it still uses the naming scheme
+    of the time-based rotation. If multiple rotations had to be done within the timeframe of
+    the time-based rollover name, then a number like ".1" will be appended to the end of the name.
+
+    Note that `errors` is ignored unless using Python 3.9 or later.
+    """
+
+    def __init__(  # noqa: PLR0913
         self,
         filename,
         when="h",
@@ -637,18 +639,6 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         lock_file_directory=None,
         **kwargs,
     ):
-        """A time-based rotating log handler that supports concurrent access across
-        multiple processes or hosts (using logs on a shared network drive).
-
-        You can also include size-based rotation by setting maxBytes > 0.
-        WARNING: if you only want time-based rollover and NOT also size-based, set maxBytes=0,
-        which is already the default.
-        Please note that when size-based rotation is done, it still uses the naming scheme
-        of the time-based rotation. If multiple rotations had to be done within the timeframe of
-        the time-based rollover name, then a number like ".1" will be appended to the end of the name.
-
-        Note that `errors` is ignored unless using Python 3.9 or later.
-        """
         if "mode" in kwargs:
             del kwargs["mode"]
         trfh_kwargs = {}
@@ -716,7 +706,9 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
                         self.doRollover()
                 except Exception as e:
                     self._console_log(
-                        "Unable to do rollover: %s\n%s" % (e, traceback.format_exc())
+                        "Unable to do rollover: {}\n{}".format(
+                            e, traceback.format_exc()
+                        )
                     )
                     # time.sleep(1000)
 
@@ -741,7 +733,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         try:
             lock_file.seek(0)
             raw_time = lock_file.read()
-        except (IOError, OSError):
+        except OSError:
             self.rolloverAt = 0
             self._console_log(f"Couldn't read rollover time from file {lock_file!r}")
             return
@@ -790,9 +782,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             self.clh._do_unlock()
 
     def shouldRollover(self, record):
-        """
-        Determine if the rollover should occur.
-        """
+        """Determine if the rollover should occur."""
         # Read the latest rollover time from the file
         self.read_rollover_time()
 
@@ -807,7 +797,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             return True
         return False
 
-    def doRollover(self):
+    def doRollover(self):  # noqa: C901, PLR0912
         """
         do a rollover; in this case, a date/time stamp is appended to the filename
         when the rollover happens.  However, you want the file to be named for the
@@ -830,10 +820,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             timeTuple = time.localtime(t)
             dstThen = timeTuple[-1]
             if dstNow != dstThen:
-                if dstNow:
-                    addend = 3600
-                else:
-                    addend = -3600
+                addend = 3600 if dstNow else -3600
                 timeTuple = time.localtime(t + addend)
         dfn = self.rotation_filename(
             self.baseFilename + "." + time.strftime(self.suffix, timeTuple)
@@ -869,7 +856,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         if (self.when == "MIDNIGHT" or self.when.startswith("W")) and not self.utc:
             dstAtRollover = time.localtime(newRolloverAt)[-1]
             if dstNow != dstAtRollover:
-                if not dstNow:
+                if not dstNow:  # noqa: SIM108
                     # DST kicks in before next rollover, so we need to deduct an hour
                     addend = -3600
                 else:

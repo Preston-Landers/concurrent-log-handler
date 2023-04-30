@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python  # noqa: INP001
+# ruff: noqa: S311, G004
 
 """
 This is a simple stress test for concurrent_log_handler. It creates a number of processes and each process
@@ -53,8 +54,8 @@ class TestOptions:
     "Use time-based rotation class instead of size-based."
 
     min_rollovers: int = field(default=70)
-    """Minimum number of rollovers to expect. Useful for testing rollover behavior. 
-    Default is 70 which is appropriate for the default test settings. The actual number 
+    """Minimum number of rollovers to expect. Useful for testing rollover behavior.
+    Default is 70 which is appropriate for the default test settings. The actual number
     of rollovers will vary significantly based on the rest of the settings."""
 
     @classmethod
@@ -92,25 +93,22 @@ class SharedCounter:
         self.lock = multiprocessing.Lock()
 
     def increment(self, n=1):
-        with self.lock:
-            with self.value.get_lock():
-                self.value.value += n
+        with self.lock, self.value.get_lock():
+            self.value.value += n
 
     def get_value(self):
-        with self.lock:
-            with self.value.get_lock():
-                return self.value.value
+        with self.lock, self.value.get_lock():
+            return self.value.value
 
 
 class ConcurrentLogHandlerBuggyMixin:
-    # noinspection PyUnresolvedReferences
     def emit(self, record):
         # Introduce a random chance (e.g., 5%) to skip or duplicate a log message
         random_choice = random.randint(1, 100)
 
-        if 1 <= random_choice <= 5:  # 5% chance to skip a log message
+        if 1 <= random_choice <= 5:  # 5% chance to skip a log message  # noqa: PLR2004
             return
-        elif 6 <= random_choice <= 10:  # 5% chance to duplicate a log message
+        if 6 <= random_choice <= 10:  # 5% chance to duplicate a log message  # noqa: PLR2004
             super().emit(record)
             super().emit(record)
         else:
@@ -170,7 +168,7 @@ def worker_process(test_opts: TestOptions, process_id: int, rollover_counter):
 
 
 def validate_log_file(test_opts: TestOptions, run_time: float) -> bool:
-    process_tracker = {i: dict() for i in range(test_opts.num_processes)}
+    process_tracker = {i: {} for i in range(test_opts.num_processes)}
 
     # Sort log files, starting with the most recent backup
     log_path = os.path.join(test_opts.log_dir, test_opts.log_file)
@@ -188,7 +186,7 @@ def validate_log_file(test_opts: TestOptions, run_time: float) -> bool:
                 raise AssertionError("use_gzip was set, but log file is not gzipped?")
         with opener(current_log_file, "rb") as file:
             for line_no, line in enumerate(file):
-                line = line.decode(encoding)
+                line = line.decode(encoding)  # noqa: PLW2901
                 chars_read += len(line)
                 parts = line.strip().split(" - ")
                 message = parts[-1]
@@ -267,9 +265,8 @@ def run_stress_test(test_opts: TestOptions) -> int:
     if validate_log_file(test_opts, end_time - start_time):
         print("Stress test passed.")
         return 0
-    else:
-        print("Stress test failed.")
-        return 1
+    print("Stress test failed.")
+    return 1
 
 
 def delete_log_files(test_opts: TestOptions):

@@ -1,0 +1,46 @@
+{
+    "files.exclude": {
+        ".idea": true,
+        ".ruff_cache": true,
+        ".run": true,
+        "**/.pytest_cache": true,
+        "**/*.egg-info": true,
+        "**/*.pyc": true,
+        "build": true,
+        "dist": true,
+        "env": true,
+        "output_tests": true,
+        "venv": true
+    },
+    "cSpell.words": [
+        "Alleman",
+        "builtins",
+        "Cabe",
+        "concat",
+        "CREAT",
+        "datetime",
+        "Journyx",
+        "levelname",
+        "logfiles",
+        "maxsplit",
+        "multiprocess",
+        "portalocker",
+        "pychecker",
+        "pycodestyle",
+        "pydoc",
+        "Pyflakes",
+        "Pylint",
+        "pywin",
+        "queuify",
+        "stresstest",
+        "tempname",
+        "timeframe",
+        "tmpname",
+        "trfh"
+    ],
+    "cSpell.ignoreRegExpList": [
+        "/\\s(os|errno|time|pwd|grp)[.].+?\\s/gi",
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
+}

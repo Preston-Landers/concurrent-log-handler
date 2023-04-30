@@ -1,10 +1,10 @@
-import time
-import logging
+import logging  # noqa: INP001
 import logging.config
+import time
 from datetime import date
 
 """
-This is an example which shows how you can use 
+This is an example which shows how you can use
 custom namer function with ConcurrentRotatingFileHandler
 """
 
@@ -14,7 +14,7 @@ def log_file_namer(logger_name: str) -> str:
     logger_name, backup_number = logger_name.rsplit(".", maxsplit=1)
     # path/name.log
     logger_name = logger_name.replace(".log", "")
-    curr_date = date.today().strftime("%Y_%m_%d")
+    curr_date = date.today().strftime("%Y_%m_%d")  # noqa: DTZ011
 
     return f"{logger_name}_{curr_date}_({backup_number}).log"
 
@@ -35,9 +35,9 @@ def my_program():
     for idx in range(0, 50):
         time.sleep(0.05)
         print("Loop %d; logging a message." % idx)
-        logger.debug("%d > A debug message." % idx)
+        logger.debug("%d > A debug message.", idx)
         if idx % 2 == 0:
-            logger.info("%d > An info message." % idx)
+            logger.info("%d > An info message.", idx)
     print("Done with example; exiting.")
 
 

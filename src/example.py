@@ -1,15 +1,15 @@
-import time
-import logging
+import logging  # noqa: INP001
 import logging.config
+import time
 
 """
-This is an example which shows how you can use ConcurrentLogHandler. If you have 
+This is an example which shows how you can use ConcurrentLogHandler. If you have
 
-Two basic options are demonstrated: 
- * ASYNC_LOGGING = False - using as a regular synchronous log handler. 
+Two basic options are demonstrated:
+ * ASYNC_LOGGING = False - using as a regular synchronous log handler.
     That means when your program logs a statement, it's processed and written to the
     log file as part of the original thread.
- * ASYNC_LOGGING = True - performs logging statements in a background thread asynchronously. 
+ * ASYNC_LOGGING = True - performs logging statements in a background thread asynchronously.
     This uses Python's `asyncio` package.
 """
 
@@ -30,9 +30,9 @@ def my_program():
     for idx in range(0, 20):
         time.sleep(0.05)
         print("Loop %d; logging a message." % idx)
-        logger.debug("%d > A debug message." % idx)
+        logger.debug("%d > A debug message.", idx)
         if idx % 2 == 0:
-            logger.info("%d > An info message." % idx)
+            logger.info("%d > An info message.", idx)
     print("Done with example; exiting.")
 
     # Optional; you can manually stop the logging queue listeners at any point
@@ -56,7 +56,7 @@ def my_logging_setup(log_name="example.log", use_async=False):
     # Import this to install logging.handlers.ConcurrentRotatingFileHandler
     # The noinspection thing is so PyCharm doesn't think we're using this for no reason
     # noinspection PyUnresolvedReferences
-    import concurrent_log_handler  # noqa F401
+    import concurrent_log_handler   # noqa: F401, I001
 
     logging_config = {
         "version": 1,

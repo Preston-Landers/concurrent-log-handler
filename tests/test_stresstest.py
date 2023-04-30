@@ -1,12 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python  # noqa: INP001
+# ruff: noqa: S101, PT006
 
 """
 Pytest based unit test cases to drive stresstest.py.
 """
 
 import pytest
-
-from stresstest import run_stress_test, TestOptions
+from stresstest import TestOptions, run_stress_test
 
 TEST_CASES = {
     "default test options": TestOptions(),
@@ -110,6 +110,6 @@ TEST_CASES = {
 
 
 @pytest.mark.parametrize("label, test_opts", TEST_CASES.items())
-def test_run_stress_test(label: str, test_opts: TestOptions):
+def test_run_stress_test(label: str, test_opts: TestOptions):  # noqa: ARG001
     """Run the stress test with the given options and verify the result."""
     assert run_stress_test(test_opts) == (1 if test_opts.induce_failure else 0)

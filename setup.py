@@ -25,7 +25,7 @@ with io.open(
     "r",
     encoding="utf-8",
 ) as fh:
-    exec(fh.read(), about)
+    exec(fh.read(), about)  # noqa: S102 # todo: cleanup
 
 extra = {"use_2to3": False}
 
