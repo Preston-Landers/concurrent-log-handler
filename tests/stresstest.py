@@ -106,9 +106,11 @@ class ConcurrentLogHandlerBuggyMixin:
         # Introduce a random chance (e.g., 5%) to skip or duplicate a log message
         random_choice = random.randint(1, 100)
 
-        if 1 <= random_choice <= 5:  # 5% chance to skip a log message  # noqa: PLR2004
+        # 5% chance to skip a log message
+        if 1 <= random_choice <= 5:  # noqa: PLR2004
             return
-        if 6 <= random_choice <= 10:  # 5% chance to duplicate a log message  # noqa: PLR2004
+        # 5% chance to duplicate a log message
+        if 6 <= random_choice <= 10:  # noqa: PLR2004
             super().emit(record)
             super().emit(record)
         else:

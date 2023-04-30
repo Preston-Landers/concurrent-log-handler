@@ -112,7 +112,6 @@ def setup_logging_queues():
 
 def stop_queue_listeners(*listeners):
     for listener in listeners:
-        # noinspection PyBroadException
         try:  # noqa: SIM105
             listener.stop()
             # if sys.stderr:
@@ -133,7 +132,6 @@ def get_all_logger_names(include_root=False):
 
     Warning: this is sensitive to internal structures in the standard logging module.
     """
-    # noinspection PyUnresolvedReferences
     rv = list(logging.Logger.manager.loggerDict.keys())
     if include_root:
         rv.insert(0, "")

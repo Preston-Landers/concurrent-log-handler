@@ -3,12 +3,13 @@
 - 0.9.23:
   - Begin requiring Python 3.6 or higher.
   - Implements a `ConcurrentTimedRotatingFileHandler` class which provides both time and/or size
-    based rotation. See the [README.md](./README.md#time-based-rotation-settings) for details. 
+    based rotation. See the [README.md](./README.md#time-based-rotation-settings) for details.
+  - Fix #56 - don't fail when setting `owner` on Windows, though it will have no effect.
 
 - 0.9.22:
   - Fix Python 2.7 compatibility (yet again)
-  - Important note: this is the FINAL release which will support Python 2.7. 
-    Future versions will support Python 3.6+ only. 
+  - Important note: this is the FINAL release which will support Python 2.7.
+    Future versions will support Python 3.6+ only.
 
 - 0.9.21:
   - Added new optional parameter "lock_file_directory"
@@ -17,7 +18,7 @@
     - Useful when the log files reside in a cloud synced folder like Dropbox, Google Drive,
         OneDrive, etc. Sometimes these do not work correctly with the lock files.
   - Fix not replacing the last file (greatest backup number) when rotating. Thanks tzongw.
-    - <https://github.com/Preston-Landers/concurrent-log-handler/pull/52> 
+    - <https://github.com/Preston-Landers/concurrent-log-handler/pull/52>
   - Add support for "namer" function to customize the naming of rotated files. Thanks @dashedman.
   - Enhanced test suite using tox and pytest.
 

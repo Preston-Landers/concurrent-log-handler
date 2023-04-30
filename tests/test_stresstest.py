@@ -103,7 +103,6 @@ TEST_CASES = {
         ),
     ),
     # TODO: it would be good to have some test cases that verify that backupCount is not exceeded.
-
     # Testing time intervals other than seconds is difficult because the tests would
     # take hours unless we find a way to mock things.
 }

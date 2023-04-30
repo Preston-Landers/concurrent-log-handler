@@ -352,7 +352,6 @@ class TestManager:
         return True
 
 
-# noinspection PyUnresolvedReferences
 def unified_diff(a, b, out=sys.stdout, out2=None):
     import difflib
 
@@ -366,7 +365,7 @@ def unified_diff(a, b, out=sys.stdout, out2=None):
         #     line = line.encode(ENCODING)
         if PY2:
             if not isinstance(line, unicode):
-                line = unicode(line, ENCODING)
+                line = unicode(line, ENCODING)  # noqa: PLW2901
             line_out = line.encode(out.encoding, "ignore").decode(out.encoding)
             out.write(line_out)
         else:
@@ -375,7 +374,7 @@ def unified_diff(a, b, out=sys.stdout, out2=None):
             dfile.write(line)
 
 
-def main_runner(args):
+def main_runner(args):  # noqa: PLR0915
     parser.add_option(
         "--processes",
         metavar="NUM",

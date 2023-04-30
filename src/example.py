@@ -54,9 +54,7 @@ def my_logging_setup(log_name="example.log", use_async=False):
     """
 
     # Import this to install logging.handlers.ConcurrentRotatingFileHandler
-    # The noinspection thing is so PyCharm doesn't think we're using this for no reason
-    # noinspection PyUnresolvedReferences
-    import concurrent_log_handler   # noqa: F401, I001
+    import concurrent_log_handler  # noqa: F401
 
     logging_config = {
         "version": 1,

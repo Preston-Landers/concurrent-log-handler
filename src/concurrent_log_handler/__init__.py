@@ -63,7 +63,6 @@ import warnings
 from contextlib import contextmanager
 from logging.handlers import BaseRotatingHandler, TimedRotatingFileHandler
 
-# noinspection PyPackageRequirements
 from portalocker import LOCK_EX, lock, unlock
 
 from concurrent_log_handler.__version__ import __author__, __version__  # noqa: F401
@@ -77,7 +76,6 @@ except ImportError:
 # Random numbers for rotation temp file names, using secrets module if available (Python 3.6).
 # Otherwise use `random.SystemRandom` if available, then fall back on `random.Random`.
 try:
-    # noinspection PyPackageRequirements,PyCompatibility
     from secrets import randbits
 except ImportError:
     import random
@@ -233,9 +231,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.terminator = terminator or "\n"
 
         if owner and has_chown and pwd and grp:
-            # noinspection PyUnresolvedReferences
             self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid
-            # noinspection PyUnresolvedReferences
             self._set_gid = grp.getgrnam(self.owner[1]).gr_gid
 
         self.lockFilename = self.getLockFilename(lock_file_directory)
@@ -323,7 +319,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             mode = self.mode
 
         with self._alter_umask():
-            # noinspection PyArgumentList
             stream = open(
                 self.baseFilename,
                 mode=mode,
@@ -381,7 +376,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         This also does the formatting *before* locks are obtained, in case the format itself does
         logging calls from within. Rollover also occurs while the lock is held.
         """
-        # noinspection PyBroadException
         try:
             msg = self.format(record)
             try:
@@ -440,7 +434,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._open_lockfile()
         if self.stream_lock:
             for _i in range(self.maxLockAttempts):
-                # noinspection PyBroadException
                 try:
                     lock(self.stream_lock, LOCK_EX)
                     self.is_locked = True
@@ -554,7 +547,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.num_rollovers += 1
         self._console_log("Rotation completed (on size)")
 
-    # noinspection PyUnusedLocal
     def shouldRollover(self, record):
         """
         Determine if rollover should occur.
@@ -605,7 +597,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             os.chmod(filename, self.chmod)
 
 
-# noinspection PyProtectedMember
 class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
     """A time-based rotating log handler that supports concurrent access across
     multiple processes or hosts (using logs on a shared network drive).
@@ -698,7 +689,6 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         This also does the formatting *before* locks are obtained, in case the format itself does
         logging calls from within. Rollover also occurs while the lock is held.
         """
-        # noinspection PyBroadException
         try:
             msg = self.format(record)
             try:
@@ -834,7 +824,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         counter = 0
         while os.path.exists(dfn + gzip_ext):
             counter += 1
-            ending = f".{counter-1}{gzip_ext}"
+            ending = f".{counter - 1}{gzip_ext}"
             if dfn.endswith(ending):
                 dfn = dfn[: -len(ending)]
             dfn = f"{dfn}.{counter}"

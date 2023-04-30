@@ -8,15 +8,13 @@ if desired. Both Windows and POSIX systems are supported. An optional threaded
 queue logging handler is provided to perform logging in the background.
 
 This is a fork of Lowell Alleman's ConcurrentLogHandler 0.9.1 which fixes
-a hanging/deadlocking problem. See this:
-
-https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150
+a hanging/deadlocking problem. [See this](https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150).
 
 Summary of other changes:
 
 * New: requires Python 3.6 or higher.
-    * If you require support for Python 2.7, use version
-      [0.9.22](https://github.com/Preston-Landers/concurrent-log-handler/releases/tag/0.9.22).
+  * If you require support for Python 2.7, use version
+    [0.9.22](https://github.com/Preston-Landers/concurrent-log-handler/releases/tag/0.9.22).
 * Renamed package to `concurrent_log_handler` (abbreviated CLH in this file.)
 * Provide `use_gzip` option to compress rotated logs
 * Support for Windows
@@ -46,7 +44,7 @@ However, this is not the only way to achieve shared logging from multiple proces
 centralize logging by using cloud logging services like Azure Log Monitor, Logstash, etc. Or you can
 implement your own remote logging server as shown here:
 
-https://docs.python.org/3/howto/logging-cookbook.html#sending-and-receiving-logging-events-across-a-network
+[Logging cookbook: network](https://docs.python.org/3/howto/logging-cookbook.html#sending-and-receiving-logging-events-across-a-network)
 
 Concurrent-Log-Handler includes a QueueHandler and QueueListener implementation that can be used to
 perform logging in the background asynchronously, so the thread or process making the log statement doesn't have
@@ -80,31 +78,27 @@ If installing from source, use the following command:
 
 If you plan to modify the code, you should follow this procedure:
 
-- Clone the repository
-- Create a virtual environment (`venv`) and activate it.
-- Install the package in editable mode with the [dev] option:
+* Clone the repository
+* Create a virtual environment (`venv`) and activate it.
+* Install the package in editable mode with the [dev] option: `pip install -e .[dev]`
 
-  `pip install -e .[dev]`
-
-- Run the tests:
-
-  `tox` or run `pytest` directly.
+* Run the tests:  `tox` or run `pytest` directly.
 
   Or manually run a single pass of the stress test with specific options:
 
-```
-  python tests/stresstest.py --help
-  python tests/stresstest.py --gzip --num-processes 12 --log-calls=5000
+```shell
+python tests/stresstest.py --help
+python tests/stresstest.py --gzip --num-processes 12 --log-calls=5000
 ```
 
-- To build a Python "wheel" for distribution, use the following:
+* To build a Python "wheel" for distribution, use the following:
 
 ```shell
-  python setup.py clean --all build sdist bdist_wheel
-  # Copy the .whl file from under the "dist" folder
-  # or upload with twine:
-  pip install twine
-  twine upload dist/concurrent-log-handler-0.9.23.tar.gz dist/concurrent_log_handler-0.9.23-py3-none-any.whl
+python setup.py clean --all build sdist bdist_wheel
+# Copy the .whl file from under the "dist" folder
+# or upload with twine:
+pip install twine
+twine upload dist/concurrent-log-handler-0.9.23.tar.gz dist/concurrent_log_handler-0.9.23-py3-none-any.whl
 ```
 
 ### Important Requirements
@@ -122,14 +116,14 @@ these requirements:
   its OWN instance of the handler (`ConcurrentRotatingFileHandler`). The child target function
   should call code that initializes a new CLH instance.
 
-    * This requirement does not apply to threads within a given process. Different threads within a
-      process can use the same CLH instance. Thread locking is handled automatically.
+  * This requirement does not apply to threads within a given process. Different threads within a
+    process can use the same CLH instance. Thread locking is handled automatically.
 
-    * This also does not apply to `fork()` based child processes such as gunicorn --preload.
-      Child processes of a fork() call should be able to inherit the CLH object instance.
+  * This also does not apply to `fork()` based child processes such as gunicorn --preload.
+    Child processes of a fork() call should be able to inherit the CLH object instance.
 
-    * This limitation exists because the CLH object can't be serialized, passed over a network or
-      pipe, and reconstituted at the other end.
+  * This limitation exists because the CLH object can't be serialized, passed over a network or
+    pipe, and reconstituted at the other end.
 
 * It is important that every process or thread writing to a given logfile must all use the same
   settings, especially related to file rotation. Also do not attempt to mix different handler
@@ -180,7 +174,7 @@ multiple hosts works due to the use of file locking on the log file. Note that w
 logging feature, currently there is no way for the caller to know when the logging statement
 completed (no "Promise" or "Future" object is returned).
 
-https://docs.python.org/3/library/logging.handlers.html#queuehandler
+[QueueHandler](https://docs.python.org/3/library/logging.handlers.html#queuehandler)
 
 ### Configuration
 
@@ -202,7 +196,7 @@ Please note that Python 3.7 and higher accepts keyword arguments (kwargs) in a l
 config file, but earlier versions of Python only accept positional args.
 
 Note: you must have an `import concurrent_log_handler` before you call fileConfig(). For
-more information see http://docs.python.org/lib/logging-config-fileformat.html
+more information see Python docs on [log file formats](http://docs.python.org/lib/logging-config-fileformat.html)
 
 ### Limitations
 
@@ -237,8 +231,8 @@ order for this to work, each process writing to the log must have access to the 
 lock file location, even if they are running on different hosts.
 
 You can set the `namer` attribute of the handler to customize the naming of the rotated files,
-in line with the `BaseRotatingHandler` class. See the Python docs for more details:
-https://docs.python.org/3.11/library/logging.handlers.html#logging.handlers.BaseRotatingHandler.namer
+in line with the `BaseRotatingHandler` class. See the Python docs for 
+[more details](https://docs.python.org/3.11/library/logging.handlers.html#logging.handlers.BaseRotatingHandler.namer).
 
 ### Line Endings
 
