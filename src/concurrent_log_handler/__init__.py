@@ -101,6 +101,9 @@ __all__ = [
     "ConcurrentTimedRotatingFileHandler",
 ]
 
+has_chown = hasattr(os, "chown")
+has_chmod = hasattr(os, "chmod")
+
 
 class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     """Handler for logging to a set of files, which switches from one file to the
@@ -229,7 +232,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         self.terminator = terminator or "\n"
 
-        if owner and os.chown and pwd and grp:
+        if owner and has_chown and pwd and grp:
             # noinspection PyUnresolvedReferences
             self._set_uid = pwd.getpwnam(self.owner[0]).pw_uid
             # noinspection PyUnresolvedReferences
@@ -595,10 +598,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         return
 
     def _do_chown_and_chmod(self, filename):
-        if self._set_uid is not None and self._set_gid is not None:
+        if has_chown and self._set_uid is not None and self._set_gid is not None:
             os.chown(filename, self._set_uid, self._set_gid)
 
-        if self.chmod is not None and os.chmod:
+        if has_chmod and self.chmod is not None:
             os.chmod(filename, self.chmod)
 
 
