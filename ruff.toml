@@ -10,6 +10,7 @@ ignore = [
     "EM102",   # using f-string in exception literal
     "T201",    # use of print
     "SLF001",  # access to _ private members
+    "EXE001",  # executable bit set (might want to revisit the ignore)
 ]
 
 select = [

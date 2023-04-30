@@ -38,6 +38,7 @@
         "Pyflakes",
         "Pylint",
         "pypi",
+        "pytest",
         "pywin",
         "queuify",
         "stresstest",
