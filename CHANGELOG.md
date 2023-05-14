@@ -1,5 +1,8 @@
 # Change Log
 
+- 0.9.24:
+  - Fixes #58 - Eliminate `use_2to3` kwarg causing problems in setup.py.
+
 - 0.9.23:
   - Begin requiring Python 3.6 or higher.
   - Implements a `ConcurrentTimedRotatingFileHandler` class which provides both time and/or size

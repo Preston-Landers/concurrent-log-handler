@@ -5,10 +5,10 @@
 #
 #   python setup.py install
 #
+
 """RotatingFileHandler replacement with concurrency, gzip and Windows support
 """
 
-import io
 import os
 import sys
 
@@ -20,14 +20,12 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 about = {}
-with io.open(
+with open(
     os.path.join(here, "src", "concurrent_log_handler", "__version__.py"),
     "r",
     encoding="utf-8",
 ) as fh:
     exec(fh.read(), about)  # noqa: S102 # todo: cleanup
-
-extra = {"use_2to3": False}
 
 classifiers = """\
 Development Status :: 4 - Beta
@@ -88,7 +86,6 @@ setup(
     keywords=package_keywords,
     classifiers=classifiers.splitlines(),
     zip_safe=True,
-    **extra
 )
 
 # Local installation for development:
