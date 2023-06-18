@@ -618,7 +618,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         interval=1,
         backupCount=0,
         encoding=None,
-        delay=False,
+        delay=None,
         utc=False,
         atTime=None,
         errors=None,
