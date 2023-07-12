@@ -196,7 +196,7 @@ Please note that Python 3.7 and higher accepts keyword arguments (kwargs) in a l
 config file, but earlier versions of Python only accept positional args.
 
 Note: you must have an `import concurrent_log_handler` before you call fileConfig(). For
-more information see Python docs on [log file formats](http://docs.python.org/lib/logging-config-fileformat.html)
+more information see Python docs on [log file formats](https://docs.python.org/3/library/logging.config.html#logging-config-fileformat)
 
 ### Limitations
 
