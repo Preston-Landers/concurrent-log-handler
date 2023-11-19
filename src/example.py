@@ -27,7 +27,7 @@ def my_program():
     logger = logging.getLogger("MyExample")
     logger.setLevel(logging.DEBUG)  # optional to set this level here
 
-    for idx in range(0, 20):
+    for idx in range(20):
         time.sleep(0.05)
         print("Loop %d; logging a message." % idx)
         logger.debug("%d > A debug message.", idx)

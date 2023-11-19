@@ -1,4 +1,4 @@
-#!/usr/bin/env python  # noqa: INP001
+#!/usr/bin/env python
 # ruff: noqa: S101, PT006
 
 """

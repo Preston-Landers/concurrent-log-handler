@@ -9,49 +9,69 @@ on:
       - master  # or the name of your primary branch
 
 jobs:
-  build:
+  lint:
+    name: Lint
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
-
-
     steps:
       - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: "pip"
+      - name: Install Hatch
+        run: |
+          pip3 install --upgrade hatch
+      - name: Run linting
+        run: |
+          hatch run lint:style
+
+  test:
+    name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
+    needs:
+      - lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        os: [ubuntu-latest]
+        include:
+          - python-version: "3.11"
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
-#      - name: Install dependencies
-#        run: |
-#          python -m pip install --upgrade pip
-#          pip install ruff pytest
-#          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-#      - name: Lint with ruff
-#        run: |
-#          # stop the build if there are Python syntax errors or undefined names
-#          ruff --format=github --select=E9,F63,F7,F82 --target-version=py37 .
-#          # default set of ruff rules with GitHub Annotations
-#          ruff --format=github --target-version=py37 .
-#      - name: Test with pytest
-#        run: |
-#          pytest
-
-      - name: Install dependencies
+          cache: pip
+      - name: Install Hatch
         run: |
-          python -m pip install --upgrade pip
-          pip install -e .[dev] ruff
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-      - name: Lint with ruff
+          pip3 install --upgrade hatch
+      - name: Run tests
         run: |
-          # stop the build if there are Python syntax errors or undefined names
-          ruff --format=github --select=E9,F63,F7,F82 --target-version=py37 .
-          # default set of ruff rules with GitHub Annotations
-          ruff --format=github --config ruff.toml --target-version=py37 .
-      - name: Test with pytest
+          hatch run test.py${{ matrix.python-version }}:cov
+  build:
+    runs-on: ubuntu-latest
+    needs:
+      - lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install Hatch
         run: |
-          pytest
-#      - name: Test with tox
-#        run: |
-#          tox
+          pip3 install --upgrade hatch
+      - name: Build
+        run: |
+          hatch build --clean
+      - uses: actions/upload-artifact@v3
+        with:
+          name: artifacts
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
 

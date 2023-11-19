@@ -1,0 +1,188 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "concurrent-log-handler"
+dynamic = ["version"]
+description = "RotatingFileHandler replacement with concurrency, gzip and Windows support"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.6"
+authors = [
+    { name = "Preston Landers", email = "planders@utexas.edu" },
+]
+keywords = [
+    "QueueHandler",
+    "QueueListener",
+    "linux",
+    "logging",
+    "portalocker",
+    "rotate",
+    "unix",
+    "windows",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Logging",
+]
+dependencies = [
+    "portalocker>=1.6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/Preston-Landers/concurrent-log-handler"
+
+[tool.hatch.version]
+path = "src/concurrent_log_handler/__version__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+]
+
+[tool.hatch.envs.test]
+dependencies = [
+  "coverage[toml] >= 7.2",
+  "pytest >= 7.4",
+  "pytest-sugar",
+]
+
+[tool.hatch.envs.test.scripts]
+version = "python3 --version"
+pip-list = "pip list"
+test = "pytest {args:tests}"
+test-cov = "coverage run -m pytest {args:tests}"
+cov-clear = "coverage erase"
+cov-report = [
+  "- coverage combine",
+  "coverage report",
+]
+cov-html = "coverage html"
+cov-json = "coverage json"
+cov = [
+  "version",
+  "pip-list",
+  "cov-clear",
+  "test-cov",
+  "cov-report",
+  "cov-json",
+  "cov-html"
+]
+
+[[tool.hatch.envs.test.matrix]]
+python = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+
+[tool.hatch.envs.lint]
+detached = true
+dependencies = [
+  "black>=23.9.1",
+  "mypy>=1.6.0",
+  "ruff>=0.1.0",
+]
+
+[tool.hatch.envs.lint.scripts]
+style = [
+  "ruff {args:.}",
+  "black --check --diff {args:.}",
+]
+fmt = [
+  "black {args:.}",
+  "ruff {args:.}",
+  "style",
+]
+
+[tool.ruff]
+output-format = "grouped"
+target-version = "py37"
+fix = true
+ignore = [
+    # Never enforce `E501` (line length violations).
+    "E501",
+    "D415",    # First line of docstring should end with a period
+    "COM812",  # missing trailing comma in Python 3.5+
+    "UP008",   # use of super(class, self) - probably can re-apply this at some point
+    "SIM115",  # Use context handler for open()
+    "PLR1711", # useless return stmt
+    "EM101",   # use of string literal in exception
+    "EM102",   # using f-string in exception literal
+    "T201",    # use of print
+    "SLF001",  # access to _ private members
+    "EXE001",  # executable bit set (might want to revisit the ignore)
+]
+
+select = [
+    "E",   # pycodestyle Errors - https://docs.astral.sh/ruff/rules/#error-e
+    "W",   # pycodestyle Warnings - https://docs.astral.sh/ruff/rules/#warning-w
+    "F",   # Pyflakes - https://docs.astral.sh/ruff/rules/#pyflakes-f
+    "C90", # McCabe complexity - https://docs.astral.sh/ruff/rules/#mccabe-c90
+    "I",   # import sorting - https://docs.astral.sh/ruff/rules/#isort-i
+    # "D",  # pydoc style - https://docs.astral.sh/ruff/rules/#pydocstyle-d
+    # "UP",  # python upgrade - https://docs.astral.sh/ruff/rules/#pyupgrade-up
+    "YTT", # sys.version misused - https://docs.astral.sh/ruff/rules/#flake8-2020-ytt
+
+    # "ANN", # annotations - https://docs.astral.sh/ruff/rules/#flake8-annotations-ann
+    "S", # flake8 bandit - https://docs.astral.sh/ruff/rules/#flake8-bandit-s
+    # "BLE", # blind exceptions - https://docs.astral.sh/ruff/rules/#flake8-blind-except-ble
+
+    # "FBT", # boolean trap - https://docs.astral.sh/ruff/rules/#flake8-boolean-trap-fbt
+    "B",   # bugbear - https://docs.astral.sh/ruff/rules/#flake8-bugbear-b
+    "A",   # flake8 builtins - https://docs.astral.sh/ruff/rules/#flake8-builtins-a
+    "COM", # flake8 commas - https://docs.astral.sh/ruff/rules/#flake8-commas-com
+    "C4",  # flake8 comprehensions - https://docs.astral.sh/ruff/rules/#flake8-comprehensions-c4
+    "DTZ", # flake8 datetime - https://docs.astral.sh/ruff/rules/#flake8-datetime-dtz
+    "EM",  # flake8 error messages - https://docs.astral.sh/ruff/rules/#flake8-errmsg-em
+    "EXE", # flake8 executables https://docs.astral.sh/ruff/rules/#flake8-executable-exe
+    "ISC", # implicit string concat https://docs.astral.sh/ruff/rules/#flake8-implicit-str-concat-isc
+    "ICN", # import conventions - https://docs.astral.sh/ruff/rules/#flake8-import-conventions-icn
+    "G",   # flake8 logging - https://docs.astral.sh/ruff/rules/#flake8-logging-format-g
+    "INP", # https://docs.astral.sh/ruff/rules/#flake8-no-pep420-inp
+    "PIE", # https://docs.astral.sh/ruff/rules/#flake8-pie-pie
+    "T20", # https://docs.astral.sh/ruff/rules/#flake8-print-t20
+    "PYI", # https://docs.astral.sh/ruff/rules/#flake8-pyi-pyi
+    "PT",  # https://docs.astral.sh/ruff/rules/#flake8-pytest-style-pt
+    "Q",   # https://docs.astral.sh/ruff/rules/#flake8-quotes-q
+    "RSE", # https://docs.astral.sh/ruff/rules/#flake8-raise-rse
+    "RET", # https://docs.astral.sh/ruff/rules/#flake8-return-ret
+    "SLF", # https://docs.astral.sh/ruff/rules/#flake8-self-slf
+    "SIM", # https://docs.astral.sh/ruff/rules/#flake8-simplify-sim
+    "TID", # https://docs.astral.sh/ruff/rules/#flake8-tidy-imports-tid
+    "TCH", # https://docs.astral.sh/ruff/rules/#flake8-type-checking-tch
+    "INT", # https://docs.astral.sh/ruff/rules/#flake8-gettext-int
+    "ARG", # https://docs.astral.sh/ruff/rules/#flake8-unused-arguments-arg
+    # "PTH", # https://docs.astral.sh/ruff/rules/#flake8-use-pathlib-pth
+    # "ERA", # https://docs.astral.sh/ruff/rules/#eradicate-era
+    "PD",  # https://docs.astral.sh/ruff/rules/#pandas-vet-pd
+    "PGH", # https://docs.astral.sh/ruff/rules/#pygrep-hooks-pgh
+
+    # Pylint
+    "PLC", # https://docs.astral.sh/ruff/rules/#convention-plc
+    "PLE", # https://docs.astral.sh/ruff/rules/#error-ple
+    "PLR", # https://docs.astral.sh/ruff/rules/#refactor-plr
+    "PLW", # https://docs.astral.sh/ruff/rules/#warning-plw
+
+    # "TRY", # https://docs.astral.sh/ruff/rules/#tryceratops-try
+    "NPY", # https://docs.astral.sh/ruff/rules/#numpy-specific-rules-npy
+    "RUF", # https://docs.astral.sh/ruff/rules/#ruff-specific-rules-ruf
+]
+
+[tool.pytest.ini_options]
+testpaths =["tests"]
+
+[tool.coverage.run]
+omit = [
+  "tests/stresstest.py"
+]

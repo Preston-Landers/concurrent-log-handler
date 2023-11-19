@@ -16,3 +16,5 @@ env37
 .__*.lock
 stress_test.log*
 .eggs
+.coverage
+coverage.json
