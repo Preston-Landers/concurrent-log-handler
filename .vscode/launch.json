@@ -1,0 +1,45 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "CLH PyTests",
+            "type": "python",
+            "request": "launch",
+            "module": "pytest",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/tests",
+            "args": [],
+            "justMyCode": false
+        },        
+        {
+            "name": "Concurrent Log Handler basic example",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/tests/other/test.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/tests/other",
+            "justMyCode": true
+        },
+        {
+            "name": "CLH old stress test",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/tests/other/stresstest.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/tests/other",
+            "args": ["--log-calls", "2000"],
+            "justMyCode": true
+        },
+    ]
+}

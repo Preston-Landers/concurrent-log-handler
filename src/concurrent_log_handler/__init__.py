@@ -836,8 +836,10 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             self.clh.do_gzip(dfn)
 
         if self.backupCount > 0:
-            for s in self.getFilesToDelete():
-                os.remove(s + gzip_ext)
+            # File will already have gzip extension here if applicable
+            # Thanks to @moynihan
+            for file in self.getFilesToDelete():
+                os.remove(file)
         # if not self.delay:
         #     self.stream = self._open()
         newRolloverAt = self.computeRollover(currentTime)
