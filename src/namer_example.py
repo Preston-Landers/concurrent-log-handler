@@ -32,7 +32,7 @@ def my_program():
     handler.namer = log_file_namer
     logger.addHandler(handler)
 
-    for idx in range(0, 50):
+    for idx in range(50):
         time.sleep(0.05)
         print("Loop %d; logging a message." % idx)
         logger.debug("%d > A debug message.", idx)

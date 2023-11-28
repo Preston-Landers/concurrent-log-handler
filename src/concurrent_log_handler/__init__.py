@@ -65,8 +65,6 @@ from logging.handlers import BaseRotatingHandler, TimedRotatingFileHandler
 
 from portalocker import LOCK_EX, lock, unlock
 
-from concurrent_log_handler.__version__ import __author__, __version__  # noqa: F401
-
 try:
     import grp
     import pwd

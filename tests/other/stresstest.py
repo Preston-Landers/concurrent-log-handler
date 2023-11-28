@@ -1,4 +1,4 @@
-#!/usr/bin/env python  # noqa: INP001
+#!/usr/bin/env python
 # -*- coding: utf-8; mode: python; py-indent-offset: 4; indent-tabs-mode: nil -*-
 # vim: fileencoding=utf-8 tabstop=4 expandtab shiftwidth=4
 
@@ -242,7 +242,7 @@ allchar = string.ascii_letters + string.punctuation + string.digits
 
 def rand_string(str_len):
     chars = []
-    for i in range(0, str_len):
+    for i in range(str_len):
         c = choice(allchar)
         if i % 10 == 0:
             c = " "
