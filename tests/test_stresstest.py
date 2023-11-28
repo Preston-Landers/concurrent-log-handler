@@ -102,6 +102,20 @@ TEST_CASES = {
             }
         ),
     ),
+    "backupCount=5, use_timed=True, maxBytes=1KiB, interval=2, log_calls=1_000, use_gzip=True": TestOptions(
+        use_timed=True,
+        log_calls=1_000,
+        min_rollovers=5,
+        log_opts=TestOptions.default_timed_log_opts(
+            {
+                "maxBytes": 1024,
+                "backupCount": 5,
+                "interval": 5,
+                "use_gzip": True,
+                "debug": True,
+            }
+        ),
+    ),
     "use_timed=True, num_processes=15, interval=1, log_calls=5_000, use_gzip=True": TestOptions(
         use_timed=True,
         log_calls=5_000,
