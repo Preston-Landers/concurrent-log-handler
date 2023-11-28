@@ -1,5 +1,12 @@
 # Change Log
 
+- 0.9.25:
+  - Improvements to project config (`pyproject.toml`) with `hatch`. Thanks @stumpylog.
+  - Fixes [#66](https://github.com/Preston-Landers/concurrent-log-handler/issues/66)
+    Timed mode rollover fails if backupCount limit is hit and gzip is on. Thanks @moynihan.
+  - Fixes [#60](https://github.com/Preston-Landers/concurrent-log-handler/issues/60)
+    Timed mode causes DeprecationWarning if you don't give the `delay` parameter. Thanks @platinops.
+
 - 0.9.24:
   - Fixes #58 - Eliminate `use_2to3` kwarg causing problems in setup.py.
 
