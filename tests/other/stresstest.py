@@ -28,10 +28,11 @@ from subprocess import Popen
 from time import sleep
 
 # local lib; for testing
-from concurrent_log_handler import PY2, ConcurrentRotatingFileHandler, randbits
+from concurrent_log_handler import ConcurrentRotatingFileHandler, randbits
 
-__version__ = "$Id$"
 __author__ = "Lowell Alleman"
+
+PY2 = False  # No longer supporting Python 2.7
 
 # ruff: noqa: F821, E501
 
@@ -252,7 +253,7 @@ def rand_string(str_len):
 
 parser = OptionParser(
     usage="usage:  %prog",
-    version=__version__,
+    # version=__version__,
     description="Stress test the concurrent_log_handler module.",
 )
 parser.add_option(

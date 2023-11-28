@@ -169,7 +169,7 @@ def worker_process(test_opts: TestOptions, process_id: int, rollover_counter):
     rollover_counter.increment(file_handler.num_rollovers)
 
 
-def validate_log_file(test_opts: TestOptions, run_time: float) -> bool:
+def validate_log_file(test_opts: TestOptions, run_time: float, expect_all=True) -> bool:
     process_tracker = {i: {} for i in range(test_opts.num_processes)}
 
     # Sort log files, starting with the most recent backup
@@ -210,13 +210,14 @@ def validate_log_file(test_opts: TestOptions, run_time: float) -> bool:
                 process_tracker[process_id][message_id] = msg_state
 
     log_calls = test_opts.log_calls
-    for process_id, message_ids in process_tracker.items():
-        if len(message_ids) != log_calls:
-            print(
-                f"Error: Missing messages from Process-{process_id}: "
-                f"len(message_ids) {len(message_ids)} != log_calls {log_calls}"
-            )
-            return False
+    if expect_all:
+        for process_id, message_ids in process_tracker.items():
+            if len(message_ids) != log_calls:
+                print(
+                    f"Error: Missing messages from Process-{process_id}: "
+                    f"len(message_ids) {len(message_ids)} != log_calls {log_calls}"
+                )
+                return False
     print(
         f"{run_time:.2f} seconds to read {chars_read} chars "
         f"from {len(all_log_files)} files ({chars_read / run_time:.2f} chars/sec)"
@@ -248,6 +249,33 @@ def run_stress_test(test_opts: TestOptions) -> int:
 
     end_time = time.time()
 
+    print(
+        f"All processes finished. (Rollovers: "
+        f"{rollover_counter.get_value()} - min was {test_opts.min_rollovers})"
+    )
+
+    # If backupCount is less than 10, assume we want specifically to
+    # test backupCount. This means, in most cases, we will have deleted
+    # some logs files and we should not expect to find all log files.
+    # Therefore we can't do the "expect_all" check where it looks for any
+    # missing lines. It would be nice to be able to combine these somehow.
+    MAGIC_BACKUP_COUNT = 10
+    expect_all_lines = True
+    backup_count = test_opts.log_opts.get("backupCount", 0)
+    if backup_count > 0 and backup_count < MAGIC_BACKUP_COUNT:
+        expect_all_lines = False
+        log_path = os.path.join(test_opts.log_dir, test_opts.log_file)
+        log_files = glob.glob(f"{log_path}*")
+        # Check that backupCount was not exceeded.
+        # The +1 is because we're counting 'backups' plus the main log file.
+        if len(log_files) != backup_count + 1:
+            print(
+                f"Error: {len(log_files)} log files were created but "
+                f"we expected {backup_count + 1}. Could indicate a failure "
+                f"to rotate properly or to delete excessive backups (`backupCount`)."
+            )
+            return 1
+
     # Each test should trigger some minimum number of rollovers.
     if (
         test_opts.min_rollovers
@@ -258,15 +286,12 @@ def run_stress_test(test_opts: TestOptions) -> int:
             f"we expected at least {test_opts.min_rollovers}."
         )
         return 1
-    print(
-        f"All processes finished. (Rollovers: "
-        f"{rollover_counter.get_value()} - min was {test_opts.min_rollovers})"
-    )
 
     # Check for any omissions or duplications.
-    if validate_log_file(test_opts, end_time - start_time):
+    if validate_log_file(test_opts, end_time - start_time, expect_all=expect_all_lines):
         print("Stress test passed.")
         return 0
+
     print("Stress test failed.")
     return 1
 
