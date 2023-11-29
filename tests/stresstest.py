@@ -19,6 +19,7 @@ import logging
 import multiprocessing
 import os
 import random
+import re
 import string
 import time
 from dataclasses import dataclass, field
@@ -254,6 +255,19 @@ def run_stress_test(test_opts: TestOptions) -> int:
         f"{rollover_counter.get_value()} - min was {test_opts.min_rollovers})"
     )
 
+    log_path = os.path.join(test_opts.log_dir, test_opts.log_file)
+    all_log_files = glob.glob(f"{log_path}*")
+
+    gzip_ext = "[.]gz" if test_opts.log_opts["use_gzip"] else ""
+
+    # Issue #68 - check for incorrect naming of files when using TimedRotatingFileHandler
+    # and we had to rollover more often than the normal `when` interval due to size limits
+    # If this happens more than once per interval, the names would be like "logfile.2020-01-01.1.2.3.4.5.gz"
+    for log_file in all_log_files:
+        if re.search(r"\.\d+\.\d+" + gzip_ext, str(log_file)):
+            print(f"Error: Incorrect naming of log file: {log_file}")
+            return 1
+
     # If backupCount is less than 10, assume we want specifically to
     # test backupCount. This means, in most cases, we will have deleted
     # some logs files and we should not expect to find all log files.
@@ -264,13 +278,11 @@ def run_stress_test(test_opts: TestOptions) -> int:
     backup_count = test_opts.log_opts.get("backupCount", 0)
     if backup_count > 0 and backup_count < MAGIC_BACKUP_COUNT:
         expect_all_lines = False
-        log_path = os.path.join(test_opts.log_dir, test_opts.log_file)
-        log_files = glob.glob(f"{log_path}*")
         # Check that backupCount was not exceeded.
         # The +1 is because we're counting 'backups' plus the main log file.
-        if len(log_files) != backup_count + 1:
+        if len(all_log_files) != backup_count + 1:
             print(
-                f"Error: {len(log_files)} log files were created but "
+                f"Error: {len(all_log_files)} log files were created but "
                 f"we expected {backup_count + 1}. Could indicate a failure "
                 f"to rotate properly or to delete excessive backups (`backupCount`)."
             )

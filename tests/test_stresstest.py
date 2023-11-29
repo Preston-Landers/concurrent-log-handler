@@ -102,7 +102,24 @@ TEST_CASES = {
             }
         ),
     ),
-    "backupCount=5, use_timed=True, maxBytes=1KiB, interval=2, log_calls=1_000, use_gzip=True": TestOptions(
+    # This checks the issue in Issue #68 - in Timed mode, when we have to rollover more
+    # often than the interval due to size limits, the naming of the files is incorrect.
+    # The check for the incorrect names is done in `run_stress_test()`. The following case can
+    # also check it.
+    "use_timed=True, maxBytes=512B, interval=3, log_calls=2_000, use_gzip=True, num_processes=3": TestOptions(
+        use_timed=True,
+        log_calls=2_000,
+        min_rollovers=5,
+        num_processes=3,
+        log_opts=TestOptions.default_timed_log_opts(
+            {
+                "maxBytes": 512,
+                "interval": 3,
+                "use_gzip": True,
+            }
+        ),
+    ),
+    "backupCount=5, use_timed=True, maxBytes=1KiB, interval=5, log_calls=1_000, use_gzip=True, debug=True": TestOptions(
         use_timed=True,
         log_calls=1_000,
         min_rollovers=5,
@@ -156,7 +173,14 @@ TEST_CASES = {
 }
 
 
-@pytest.mark.parametrize("label, test_opts", TEST_CASES.items())
+use_timed_only = False
+
+test_cases = TEST_CASES
+if use_timed_only:
+    test_cases = {label: case for label, case in TEST_CASES.items() if case.use_timed}
+
+
+@pytest.mark.parametrize("label, test_opts", test_cases.items())
 def test_run_stress_test(label: str, test_opts: TestOptions):  # noqa: ARG001
     """Run the stress test with the given options and verify the result."""
     assert run_stress_test(test_opts) == (1 if test_opts.induce_failure else 0)

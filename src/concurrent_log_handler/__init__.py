@@ -819,12 +819,13 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
 
         gzip_ext = ".gz" if self.clh.use_gzip else ""
 
-        counter = 0
-        while os.path.exists(dfn + gzip_ext):
-            counter += 1
-            ending = f".{counter - 1}{gzip_ext}"
-            if dfn.endswith(ending):
-                dfn = dfn[: -len(ending)]
+        counter = 1
+        if os.path.exists(dfn + gzip_ext):
+            while os.path.exists(f"{dfn}.{counter}{gzip_ext}"):
+                ending = f".{counter - 1}{gzip_ext}"
+                if dfn.endswith(ending):
+                    dfn = dfn[: -len(ending)]
+                counter += 1
             dfn = f"{dfn}.{counter}"
 
         # if os.path.exists(dfn):
@@ -840,8 +841,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             # Thanks to @moynihan
             for file in self.getFilesToDelete():
                 os.remove(file)
-        # if not self.delay:
-        #     self.stream = self._open()
+
         newRolloverAt = self.computeRollover(currentTime)
         while newRolloverAt <= currentTime:
             newRolloverAt = newRolloverAt + self.interval
