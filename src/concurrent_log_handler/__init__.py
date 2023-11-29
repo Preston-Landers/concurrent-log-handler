@@ -861,6 +861,59 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         self.write_rollover_time()
         self._console_log(f"Rotation completed (on time) {dfn}")
 
+    def getFilesToDelete(self):
+        """
+        Determine the files to delete when rolling over.
+
+        Copied from Python 3.11, and only applied when the current Python
+        seems to be Python 3.8 or lower, which is when this seemed to change.
+        The newer version supports custom suffixes like ours, such
+        as when hitting a size limit before the time limit.
+        """
+
+        # If Python > 3.8, then use the superclass method.
+        if sys.version_info >= (3, 9):
+            return super().getFilesToDelete()
+
+        dirName, baseName = os.path.split(self.baseFilename)
+        fileNames = os.listdir(dirName)
+        result = []
+        # See bpo-44753: Don't use the extension when computing the prefix.
+        n, e = os.path.splitext(baseName)
+        prefix = n + "."
+        plen = len(prefix)
+        for fileName in fileNames:
+            if self.namer is None:
+                # Our files will always start with baseName
+                if not fileName.startswith(baseName):
+                    continue
+            # Our files could be just about anything after custom naming, but
+            # likely candidates are of the form
+            # foo.log.DATETIME_SUFFIX or foo.DATETIME_SUFFIX.log
+            elif (
+                not fileName.startswith(baseName)
+                and fileName.endswith(e)
+                and len(fileName) > (plen + 1)
+                and not fileName[plen + 1].isdigit()
+            ):
+                continue
+
+            if fileName[:plen] == prefix:
+                suffix = fileName[plen:]
+                # See bpo-45628: The date/time suffix could be anywhere in the
+                # filename
+                parts = suffix.split(".")
+                for part in parts:
+                    if self.extMatch.match(part):
+                        result.append(os.path.join(dirName, fileName))
+                        break
+        if len(result) < self.backupCount:
+            result = []
+        else:
+            result.sort()
+            result = result[: len(result) - self.backupCount]
+        return result
+
 
 # Publish these classes to the "logging.handlers" module, so they can be used
 # from a logging config file via logging.config.fileConfig().
