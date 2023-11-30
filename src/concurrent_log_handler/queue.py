@@ -26,26 +26,34 @@ import logging
 import queue
 import sys
 from logging.handlers import QueueHandler, QueueListener
+from typing import Dict, List, Optional, Tuple, Union
 
 __author__ = "Preston Landers <planders@gmail.com>"
 
-GLOBAL_LOGGER_HANDLERS = {}
+GLOBAL_LOGGER_HANDLERS: Dict[
+    str, Tuple[List[logging.Handler], "AsyncQueueListener"]
+] = {}
 
 
 # create a thread with a event loop in case of creating a coroutine in self.handle
 class AsyncQueueListener(QueueListener):
-    def __init__(self, queue, *handlers, respect_handler_level=False):
+    def __init__(
+        self,
+        queue: queue.Queue,
+        *handlers: logging.Handler,
+        respect_handler_level: bool = False,
+    ):
         super().__init__(queue, *handlers, respect_handler_level=respect_handler_level)
-        self.loop = None
+        self.loop: Optional[asyncio.AbstractEventLoop] = None
 
-    def _monitor(self):
+    def _monitor(self) -> None:
         # set event loop in thread
         self.loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self.loop)
 
-        super()._monitor()
+        super()._monitor()  # type: ignore[misc]
 
-    def stop(self):
+    def stop(self) -> None:
         # stop event loop
         if self.loop:
             self.loop.stop()
@@ -53,15 +61,16 @@ class AsyncQueueListener(QueueListener):
 
         self.enqueue_sentinel()
         # set timeout in case thread occurs deadlock
-        self._thread.join(1)
-        self._thread = None
+        if self._thread:
+            self._thread.join(1)
+            self._thread = None
 
 
-def setup_logging_queues():
+def setup_logging_queues() -> None:
     if sys.version_info.major < 3:  # noqa: PLR2004
         raise RuntimeError("This feature requires Python 3.")
 
-    queue_listeners = []
+    queue_listeners: List[AsyncQueueListener] = []
 
     previous_queue_listeners = []
 
@@ -70,7 +79,7 @@ def setup_logging_queues():
     for logger_name in get_all_logger_names(include_root=True):
         logger = logging.getLogger(logger_name)
         if logger.handlers:
-            ori_handlers = []
+            ori_handlers: List[logging.Handler] = []
 
             # retrieve original handlers and listeners from GLOBAL_LOGGER_HANDLERS if exist
             if logger_name in GLOBAL_LOGGER_HANDLERS:
@@ -87,7 +96,7 @@ def setup_logging_queues():
             else:
                 ori_handlers.extend(logger.handlers)
 
-            log_queue = queue.Queue(-1)  # No limit on size
+            log_queue: queue.Queue[str] = queue.Queue(-1)  # No limit on size
 
             queue_handler = QueueHandler(log_queue)
             queue_listener = AsyncQueueListener(log_queue, respect_handler_level=True)
@@ -99,7 +108,7 @@ def setup_logging_queues():
             queue_listeners.append(queue_listener)
 
             # save original handlers and current listeners
-            GLOBAL_LOGGER_HANDLERS[logger_name] = [ori_handlers, queue_listener]
+            GLOBAL_LOGGER_HANDLERS[logger_name] = (ori_handlers, queue_listener)
 
     # stop previous listeners at first
     stop_queue_listeners(*previous_queue_listeners)
@@ -110,7 +119,7 @@ def setup_logging_queues():
     atexit.register(stop_queue_listeners, *queue_listeners)
 
 
-def stop_queue_listeners(*listeners):
+def stop_queue_listeners(*listeners: AsyncQueueListener) -> None:
     for listener in listeners:
         try:  # noqa: SIM105
             listener.stop()
@@ -127,7 +136,7 @@ def stop_queue_listeners(*listeners):
             #     sys.stderr.flush()
 
 
-def get_all_logger_names(include_root=False):
+def get_all_logger_names(include_root: bool = False) -> List[str]:
     """Return ``list`` of names of all loggers than have been accessed.
 
     Warning: this is sensitive to internal structures in the standard logging module.
@@ -138,7 +147,11 @@ def get_all_logger_names(include_root=False):
     return rv
 
 
-def queuify_logger(logger, queue_handler, queue_listener):
+def queuify_logger(
+    logger: Union[logging.Logger, str],
+    queue_handler: QueueHandler,
+    queue_listener: QueueListener,
+) -> None:
     """Replace logger's handlers with a queue handler while adding existing
     handlers to a queue listener.
 
