@@ -1,10 +1,11 @@
 # Change Log
 
 - 0.9.25:
-  - Improvements to project config (`pyproject.toml`) with `hatch`. Thanks @stumpylog.
-  - Fixes [#66](https://github.com/Preston-Landers/concurrent-log-handler/issues/66)
+  - Improvements to project config (`pyproject.toml`) with `hatch` (PR #65), and the addition of
+    Python typing hints (PR #69). Thanks @stumpylog.
+  - Fixes [Issue #66](https://github.com/Preston-Landers/concurrent-log-handler/issues/66)
     Timed mode rollover fails if backupCount limit is hit and gzip is on. Thanks @moynihan.
-  - Fixes [#60](https://github.com/Preston-Landers/concurrent-log-handler/issues/60)
+  - Fixes [Issue #60](https://github.com/Preston-Landers/concurrent-log-handler/issues/60)
     Timed mode causes DeprecationWarning if you don't give the `delay` parameter. Thanks @platinops.
 
 - 0.9.24:

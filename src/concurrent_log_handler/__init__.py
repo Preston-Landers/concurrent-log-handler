@@ -874,7 +874,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         as when hitting a size limit before the time limit.
         """
 
-        # If Python > 3.9, then use the superclass method.
+        # If Python is 3.9 or later, then use the superclass method.
         if sys.version_info >= (3, 9):
             return super().getFilesToDelete()
 
