@@ -24,7 +24,7 @@ jobs:
           pip3 install --upgrade hatch
       - name: Run linting
         run: |
-          hatch run lint:style
+          hatch run lint:all
 
   test:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.os }}
