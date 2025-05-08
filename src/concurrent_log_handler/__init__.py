@@ -867,55 +867,99 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
     def getFilesToDelete(self) -> List[str]:
         """
         Determine the files to delete when rolling over.
-
-        Copied from Python 3.11, and only applied when the current Python
-        seems to be Python 3.8 or lower, which is when this seemed to change.
-        The newer version supports custom suffixes like ours, such
-        as when hitting a size limit before the time limit.
+        
+        This implementation handles the naming convention used by ConcurrentTimedRotatingFileHandler
+        when both time and size rotation are active, where files can have names like:
+        basename.YYYY-MM-DD_HH-MM-SS.1, basename.YYYY-MM-DD_HH-MM-SS.2, etc.
+        
+        We need to parse both the timestamp and any counter suffix to properly sort these files
+        and delete the oldest ones when backupCount is exceeded.
         """
-
-        # If Python is 3.9 or later, then use the superclass method.
-        if sys.version_info >= (3, 9):
-            return super().getFilesToDelete()
-
         dirName, baseName = os.path.split(self.baseFilename)
         fileNames = os.listdir(dirName)
-        result = []
-        # See bpo-44753: Don't use the extension when computing the prefix.
-        n, e = os.path.splitext(baseName)
-        prefix = n + "."
-        plen = len(prefix)
+        
+        # Build a list of files to analyze
+        candidates = []
+        
+        # Build a pattern that matches our log file with optional .gz extension
+        gzip_ext = ".gz" if self.clh.use_gzip else ""
         for fileName in fileNames:
-            if self.namer is None:
-                # Our files will always start with baseName
-                if not fileName.startswith(baseName):
-                    continue
-            # Our files could be just about anything after custom naming, but
-            # likely candidates are of the form
-            # foo.log.DATETIME_SUFFIX or foo.DATETIME_SUFFIX.log
-            elif (
-                not fileName.startswith(baseName)
-                and fileName.endswith(e)
-                and len(fileName) > (plen + 1)
-                and not fileName[plen + 1].isdigit()
-            ):
+            # Skip the current log file - it's not a backup
+            if fileName == baseName:
                 continue
-
-            if fileName[:plen] == prefix:
-                suffix = fileName[plen:]
-                # See bpo-45628: The date/time suffix could be anywhere in the
-                # filename
-                parts = suffix.split(".")
-                for part in parts:
-                    if self.extMatch.match(part):
-                        result.append(os.path.join(dirName, fileName))
-                        break
-        if len(result) < self.backupCount:
-            result = []
-        else:
-            result.sort()
-            result = result[: len(result) - self.backupCount]
-        return result
+                
+            # Skip if not a rotated version of our log file
+            if not fileName.startswith(baseName + '.'):
+                continue
+                
+            # Skip lock files or other unrelated files
+            if (not self.extMatch.search(fileName) and 
+                not (gzip_ext and fileName.endswith(gzip_ext))):
+                continue
+                
+            candidates.append(os.path.join(dirName, fileName))
+                
+        if len(candidates) <= self.backupCount:
+            return []  # Nothing to delete yet
+            
+        # Sort files by modification time primarily, and then by counter suffix if available
+        file_data = []
+        for candidate in candidates:
+            # Get basic file info
+            filename = os.path.basename(candidate)
+            
+            # Extract the timestamp part
+            time_part = ""
+            counter_part = 0
+            
+            # Split the filename into parts
+            parts = filename[len(baseName)+1:].split('.')
+            
+            # Look for the timestamp part and the optional counter suffix
+            for i, part in enumerate(parts):
+                if self.extMatch.match(part):
+                    time_part = part
+                    # Check if the next part is a counter suffix
+                    # Note: 'gz' will not pass the isdigit() check, so we don't need to explicitly exclude it
+                    if i+1 < len(parts) and parts[i+1].isdigit():
+                        counter_part = int(parts[i+1])
+                    break
+            
+            # If we couldn't find a time part, try to fallback using file modification time
+            if not time_part:
+                mtime = os.path.getmtime(candidate)
+                file_data.append((mtime, 0, candidate))
+            else:
+                # Use the parsed time component as primary sort key, counter as secondary
+                try:
+                    # Try to convert time part to a timestamp for proper chronological sorting
+                    time_tuple = time.strptime(time_part, self.suffix)
+                    timestamp = time.mktime(time_tuple)
+                    file_data.append((timestamp, counter_part, candidate))
+                except (ValueError, TypeError):
+                    # Fallback if time part can't be parsed
+                    mtime = os.path.getmtime(candidate)
+                    file_data.append((mtime, counter_part, candidate))
+        
+        # Sort by primary key (timestamp) then secondary key (counter)
+        # Oldest files first for proper deletion
+        file_data.sort()
+        
+        # Return the list of old files beyond the backupCount
+        result = [x[2] for x in file_data]
+        
+        if self.clh._debug:
+            self._console_log(f"Found {len(candidates)} log files, keeping {self.backupCount}")
+            if len(result) > 10:
+                self._console_log(f"First 5 files to keep: {result[len(result) - self.backupCount:][:5]}")
+                self._console_log(f"First 5 files to delete: {result[:5]}")
+            else:
+                self._console_log(f"Files to keep: {result[len(result) - self.backupCount:]}")
+                self._console_log(f"Files to delete: {result[:len(result) - self.backupCount]}")
+        
+        if len(result) > self.backupCount:
+            return result[:len(result) - self.backupCount]
+        return []
 
 
 # Publish these classes to the "logging.handlers" module, so they can be used

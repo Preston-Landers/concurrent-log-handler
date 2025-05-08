@@ -91,7 +91,7 @@ cov = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+python = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
 
 [tool.hatch.envs.lint]
 detached = true

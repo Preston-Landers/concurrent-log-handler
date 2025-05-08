@@ -18,3 +18,4 @@ stress_test.log*
 .eggs
 .coverage
 coverage.json
+tmp
