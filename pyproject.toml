@@ -48,7 +48,9 @@ dev = [
   "hatch",
   "pytest",
   "coverage",
-  "pytest-sugar"
+  "pytest-sugar",
+  "black",
+  "ruff",
 ]
 [project.urls]
 Homepage = "https://github.com/Preston-Landers/concurrent-log-handler"
@@ -108,7 +110,7 @@ typing = [
   "mypy --install-types --non-interactive {args:src/concurrent_log_handler}"
   ]
 style = [
-  "ruff {args:.}",
+  "ruff check {args:.}",
   "black --check --diff {args:.}",
 ]
 fmt = [
@@ -125,6 +127,8 @@ all = [
 output-format = "grouped"
 target-version = "py37"
 fix = true
+
+[tool.ruff.lint]
 ignore = [
     # Never enforce `E501` (line length violations).
     "E501",
