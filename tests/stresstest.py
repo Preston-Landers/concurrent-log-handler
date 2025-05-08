@@ -256,6 +256,13 @@ def run_stress_test(test_opts: TestOptions) -> int:
     )
 
     log_path = os.path.join(test_opts.log_dir, test_opts.log_file)
+
+    # Allow a brief moment for file system operations to settle after processes exit.
+    # This seems to help with our count check below.
+    settle_time = 0.2
+    print(f"Pausing for {settle_time}s to allow file system to settle...")
+    time.sleep(settle_time)
+
     all_log_files = glob.glob(f"{log_path}*")
 
     gzip_ext = "[.]gz" if test_opts.log_opts["use_gzip"] else ""

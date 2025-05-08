@@ -12,11 +12,13 @@ omit =
     */.venv/*
     */venv/*
     */.tox/*
+    src/example.py
+    src/namer_example.py
 
 [report]
 show_missing = true
 skip_covered = true
-# fail_under = 80  
+# fail_under = 70  
 
 [html]
 directory = htmlcov

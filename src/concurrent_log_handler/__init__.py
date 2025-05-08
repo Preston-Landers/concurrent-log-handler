@@ -577,18 +577,42 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._console_log("#no gzip available", stack=False)
             return
         out_filename = input_filename + ".gz"
-
-        with open(input_filename, "rb") as input_fh, gzip.open(
-            out_filename, "wb"
-        ) as gzip_fh:
-            while True:
-                data = input_fh.read(self.gzip_buffer)
-                if not data:
-                    break
-                gzip_fh.write(data)
-
-        os.remove(input_filename)
-        self._console_log(f"#gzipped: {out_filename}", stack=False)
+        success = False
+        try:
+            with open(input_filename, "rb") as input_fh, gzip.open(
+                out_filename, "wb"
+            ) as gzip_fh:
+                while True:
+                    data = input_fh.read(self.gzip_buffer)
+                    if not data:
+                        break
+                    gzip_fh.write(data)
+            success = True  # Mark success only if all writes complete
+        except Exception as e:
+            self._console_log(
+                f"Error during gzip of {input_filename} to {out_filename}: {e}. Rolled back if possible.",
+                stack=True,
+            )
+            # Attempt to remove potentially incomplete .gz file
+            if os.path.exists(out_filename):
+                try:
+                    os.remove(out_filename)
+                except Exception as e_rem:
+                    self._console_log(
+                        f"Could not remove incomplete/problematic gz file {out_filename}: {e_rem}",
+                        stack=False,
+                    )
+        finally:
+            if success:
+                try:
+                    os.remove(input_filename)  # Only remove original if gzip succeeded
+                    self._console_log(f"#gzipped: {out_filename}", stack=False)
+                except Exception as e_rem_orig:
+                    self._console_log(
+                        f"Failed to remove original file {input_filename} after successful gzip: {e_rem_orig}",
+                        stack=True,
+                    )
+            # else: original input_filename is preserved if gzip failed
 
     def _do_chown_and_chmod(self, filename: str) -> None:
         if HAS_CHOWN and self._set_uid is not None and self._set_gid is not None:
