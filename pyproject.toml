@@ -43,6 +43,13 @@ dependencies = [
     "portalocker>=1.6.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "hatch",
+  "pytest",
+  "coverage",
+  "pytest-sugar"
+]
 [project.urls]
 Homepage = "https://github.com/Preston-Landers/concurrent-log-handler"
 

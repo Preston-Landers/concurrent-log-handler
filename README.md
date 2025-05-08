@@ -82,7 +82,9 @@ If you plan to modify the code, you should follow this procedure:
 * Create a virtual environment (`venv`) and activate it.
 * Install the package in editable mode with the [dev] option: `pip install -e .[dev]`
 
-* Run the tests:  `tox` or run `pytest` directly.
+This should install hatch. 
+
+* Run the tests:  `hatch test`
 
   Or manually run a single pass of the stress test with specific options:
 
