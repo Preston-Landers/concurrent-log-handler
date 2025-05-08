@@ -17,5 +17,10 @@ env37
 stress_test.log*
 .eggs
 .coverage
+.coverage.*
+!.coveragerc
 coverage.json
 tmp
+coverage.xml
+lcov.info
+.python-version

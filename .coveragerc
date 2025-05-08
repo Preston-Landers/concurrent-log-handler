@@ -1,0 +1,32 @@
+# pytest --cov --cov-report=html --cov-report=xml --cov-report=lcov --cov-report=term-missing
+
+[run]
+parallel = true
+branch = true
+concurrency = multiprocessing
+source = src
+data_file = ./tmp/.coverage
+omit =
+    */tests/*
+    */__main__.py
+    */.venv/*
+    */venv/*
+    */.tox/*
+
+[report]
+show_missing = true
+skip_covered = true
+# fail_under = 80  
+
+[html]
+directory = htmlcov
+
+# [paths]
+# source =
+#    src/concurrent_log_handler
+
+[xml]
+output = coverage.xml
+
+[lcov]
+output = lcov.info

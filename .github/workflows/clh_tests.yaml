@@ -1,12 +1,10 @@
 name: Concurrent Log Handler (CLH) tests
 
+# We want to run the test/lint on every push and pull request.
+
 on:
   push:
-    branches:
-      - master  # or the name of your primary branch
   pull_request:
-    branches:
-      - master  # or the name of your primary branch
 
 jobs:
   lint:
@@ -14,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.10
+      - name: Set up Python 3.13
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.13"
           cache: "pip"
       - name: Install Hatch
         run: |
@@ -33,10 +31,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
-        os: [ubuntu-latest]
+        # python-version: [ "3.8.18", "3.9.22", "3.10.17", "3.11.12", "3.12.10", "3.13.3", "3.14.0" ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12", "3.13" ]
+        os: [ ubuntu-latest ]
         include:
-          - python-version: "3.11"
+          # Unfortunately these older versions are no longer supported by GH
+          #          - python-version: "3.6"
+          #            os: ubuntu-22.04
+          - python-version: "3.7"
+            os: ubuntu-22.04
+          - python-version: "3.13"
             os: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,10 +61,10 @@ jobs:
       - lint
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.10
+      - name: Set up Python 3.13
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.13"
           cache: pip
       - name: Install Hatch
         run: |
@@ -68,7 +72,7 @@ jobs:
       - name: Build
         run: |
           hatch build --clean
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: dist/*

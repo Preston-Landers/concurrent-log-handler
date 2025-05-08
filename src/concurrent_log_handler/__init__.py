@@ -65,7 +65,7 @@ import warnings
 from contextlib import contextmanager
 from io import TextIOWrapper
 from logging.handlers import BaseRotatingHandler, TimedRotatingFileHandler
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, TextIO, Tuple
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
 
 from portalocker import LOCK_EX, lock, unlock
 
@@ -288,7 +288,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         self._do_chown_and_chmod(lock_file)
 
-    def atomic_open(self, file_path: str) -> TextIO:
+    def atomic_open(self, file_path: str) -> TextIOWrapper:
         try:
             # Attempt to open the file in "r+" mode
             file = open(file_path, "r+", encoding=self.encoding, newline=self.newline)
