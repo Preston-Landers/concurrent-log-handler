@@ -4,7 +4,7 @@
 
 # ruff: noqa: RET504, S311, S603
 
-""" stresstest.py:  A stress-tester for ConcurrentRotatingFileHandler
+"""stresstest.py:  A stress-tester for ConcurrentRotatingFileHandler
 
 This utility spawns a bunch of processes that all try to concurrently write to
 the same file. This is pretty much the worst-case scenario for my log handler.
@@ -298,7 +298,7 @@ class TestManager:
     class ChildProc(object):
         """Very simple child container class."""
 
-        __slots__ = ["popen", "sharedfile", "clientfile"]
+        __slots__ = ["clientfile", "popen", "sharedfile"]
 
         def __init__(self, **kwargs):
             self.update(**kwargs)

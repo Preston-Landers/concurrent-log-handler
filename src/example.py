@@ -1,4 +1,4 @@
-import logging  # noqa: INP001
+import logging
 import logging.config
 import time
 

@@ -65,7 +65,7 @@ import warnings
 from contextlib import contextmanager
 from io import TextIOWrapper
 from logging.handlers import BaseRotatingHandler, TimedRotatingFileHandler
-from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Generator, List, Optional, TextIO, Tuple
 
 from portalocker import LOCK_EX, lock, unlock
 
@@ -88,7 +88,7 @@ except ImportError:
     else:
 
         def randbits(k: int) -> int:
-            return random.Random().getrandbits(k)
+            return random.Random().getrandbits(k)  # noqa: S311
 
 
 try:
@@ -288,7 +288,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         self._do_chown_and_chmod(lock_file)
 
-    def atomic_open(self, file_path: str) -> TextIOWrapper:
+    def atomic_open(self, file_path: str) -> TextIO:
         try:
             # Attempt to open the file in "r+" mode
             file = open(file_path, "r+", encoding=self.encoding, newline=self.newline)
@@ -634,8 +634,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         lock_file_directory: Optional[str] = None,
         **kwargs,
     ):
-        if "mode" in kwargs:
-            del kwargs["mode"]
+        kwargs.pop("mode", None)
         trfh_kwargs: Dict[str, Optional[str]] = {}
         if sys.version_info >= (3, 9):
             trfh_kwargs["errors"] = errors
@@ -787,9 +786,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         elif self.clh.shouldRollover(record):
             self.clh._console_log("Rolling over because of size")
             do_rollover = True
-        if do_rollover:
-            return True
-        return False
+        return bool(do_rollover)
 
     def doRollover(self) -> None:  # noqa: C901, PLR0912
         """
@@ -864,67 +861,68 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         self.write_rollover_time()
         self._console_log(f"Rotation completed (on time) {dfn}")
 
-    def getFilesToDelete(self) -> List[str]:
+    def getFilesToDelete(self) -> List[str]:  # noqa: C901, PLR0912
         """
         Determine the files to delete when rolling over.
-        
+
         This implementation handles the naming convention used by ConcurrentTimedRotatingFileHandler
         when both time and size rotation are active, where files can have names like:
         basename.YYYY-MM-DD_HH-MM-SS.1, basename.YYYY-MM-DD_HH-MM-SS.2, etc.
-        
+
         We need to parse both the timestamp and any counter suffix to properly sort these files
         and delete the oldest ones when backupCount is exceeded.
         """
         dirName, baseName = os.path.split(self.baseFilename)
         fileNames = os.listdir(dirName)
-        
+
         # Build a list of files to analyze
         candidates = []
-        
+
         # Build a pattern that matches our log file with optional .gz extension
         gzip_ext = ".gz" if self.clh.use_gzip else ""
         for fileName in fileNames:
             # Skip the current log file - it's not a backup
             if fileName == baseName:
                 continue
-                
+
             # Skip if not a rotated version of our log file
-            if not fileName.startswith(baseName + '.'):
+            if not fileName.startswith(baseName + "."):
                 continue
-                
+
             # Skip lock files or other unrelated files
-            if (not self.extMatch.search(fileName) and 
-                not (gzip_ext and fileName.endswith(gzip_ext))):
+            if not self.extMatch.search(fileName) and not (
+                gzip_ext and fileName.endswith(gzip_ext)
+            ):
                 continue
-                
+
             candidates.append(os.path.join(dirName, fileName))
-                
+
         if len(candidates) <= self.backupCount:
             return []  # Nothing to delete yet
-            
+
         # Sort files by modification time primarily, and then by counter suffix if available
         file_data = []
         for candidate in candidates:
             # Get basic file info
             filename = os.path.basename(candidate)
-            
+
             # Extract the timestamp part
             time_part = ""
             counter_part = 0
-            
+
             # Split the filename into parts
-            parts = filename[len(baseName)+1:].split('.')
-            
+            parts = filename[len(baseName) + 1 :].split(".")
+
             # Look for the timestamp part and the optional counter suffix
             for i, part in enumerate(parts):
                 if self.extMatch.match(part):
                     time_part = part
                     # Check if the next part is a counter suffix
                     # Note: 'gz' will not pass the isdigit() check, so we don't need to explicitly exclude it
-                    if i+1 < len(parts) and parts[i+1].isdigit():
-                        counter_part = int(parts[i+1])
+                    if i + 1 < len(parts) and parts[i + 1].isdigit():
+                        counter_part = int(parts[i + 1])
                     break
-            
+
             # If we couldn't find a time part, try to fallback using file modification time
             if not time_part:
                 mtime = os.path.getmtime(candidate)
@@ -940,25 +938,33 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
                     # Fallback if time part can't be parsed
                     mtime = os.path.getmtime(candidate)
                     file_data.append((mtime, counter_part, candidate))
-        
+
         # Sort by primary key (timestamp) then secondary key (counter)
         # Oldest files first for proper deletion
         file_data.sort()
-        
+
         # Return the list of old files beyond the backupCount
         result = [x[2] for x in file_data]
-        
+
         if self.clh._debug:
-            self._console_log(f"Found {len(candidates)} log files, keeping {self.backupCount}")
-            if len(result) > 10:
-                self._console_log(f"First 5 files to keep: {result[len(result) - self.backupCount:][:5]}")
+            self._console_log(
+                f"Found {len(candidates)} log files, keeping {self.backupCount}"
+            )
+            if len(result) > 10:  # noqa: PLR2004
+                self._console_log(
+                    f"First 5 files to keep: {result[len(result) - self.backupCount:][:5]}"
+                )
                 self._console_log(f"First 5 files to delete: {result[:5]}")
             else:
-                self._console_log(f"Files to keep: {result[len(result) - self.backupCount:]}")
-                self._console_log(f"Files to delete: {result[:len(result) - self.backupCount]}")
-        
+                self._console_log(
+                    f"Files to keep: {result[len(result) - self.backupCount:]}"
+                )
+                self._console_log(
+                    f"Files to delete: {result[:len(result) - self.backupCount]}"
+                )
+
         if len(result) > self.backupCount:
-            return result[:len(result) - self.backupCount]
+            return result[: len(result) - self.backupCount]
         return []
 
 
