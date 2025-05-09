@@ -385,7 +385,10 @@ def run_stress_test(  # noqa: C901, PLR0911, PLR0912, PLR0915
     )
 
     log_path_base = os.path.join(test_opts.log_dir, test_opts.log_file)
-    settle_time = 0.3  # Increased slightly
+
+    # Allow a brief moment for file system operations to settle after processes exit.
+    # This seems to help with our count check below.
+    settle_time = 0.4
     print(f"Pausing for {settle_time}s to allow file system to settle...")
     time.sleep(settle_time)
 
@@ -465,7 +468,7 @@ def run_stress_test(  # noqa: C901, PLR0911, PLR0912, PLR0915
             "Info: CTRFH with backupCount=0. Old rotated files are deleted. Not all lines validated."
         )
         # Max number of files could be small (e.g., 1 or 2: current + just rotated one)
-        if len(all_log_files) > 2 and actual_total_rollovers > 1:  # Heuristic  # noqa: PLR2004
+        if len(all_log_files) > 2 and actual_total_rollovers > 1:  # noqa: PLR2004
             print(
                 f"Warning: CTRFH with backupCount=0 has {len(all_log_files)} files. Expected few. Files: {all_log_files}"
             )
