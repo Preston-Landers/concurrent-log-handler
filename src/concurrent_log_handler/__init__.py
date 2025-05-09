@@ -605,6 +605,18 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             # Use adaptive flag here
             if not self._actual_keep_log_stream_open:
                 self._close()
+            # The increment of num_rollovers is mostly for testing purposes. Here's the explanation:
+            # When backupCount <= 0, the handler truncates the file by reopening it in "w" mode, but it does
+            # not increment its internal self.num_rollovers counter before returning.
+            # Therefore, even though the file is effectively "rolling over" by truncation, the num_rollovers
+            # attribute of each handler instance remains 0. The worker_process in stresstest.py then adds
+            # these zeros to the SharedCounter, resulting in a total of 0 reported rollovers.
+            self.num_rollovers += 1
+            if self._debug:
+                self._console_log(
+                    f"Rotation completed by truncation (backupCount={self.backupCount})"
+                )
+                return
             return
 
         # Determine if we can rename the log file or not. Windows refuses to
