@@ -1,5 +1,29 @@
 # Change Log
 
+- 0.9.26:
+  - Significant performance improvements, especially on the POSIX side.
+  - This is mainly from keeping the file handles open for both the log file and the lock file, reducing
+    system calls and overhead.
+  - You can revert to the old behavior by setting `keep_file_open=False` in the constructor. The default
+    is `True`.
+  - On Windows, the log file must be closed after each write to achieve rollovers, due to the
+    behavior of the Windows filesystem APIs. However, the `keep_file_open` option still applies
+    to the **lock** file and can improve performance when `True`.
+  - Fixed some bugs in the Timed handler around file rotation (selecting files to delete). These
+    would likely only arise with artificially low rotation intervals such as in the unit tests.
+  - Make the gzip option slightly more robust to errors. In the future, we may offload this to a 
+    background process, and introduce additional compression options.
+  - Developer items:
+    - Updated the GitHub Actions CI test matrix:
+      - Added Python 3.13 for testing.
+      - GitHub Actions no longer supports runners for automated testing under Python 3.6 and 3.7.  
+      - **Note:** The package continues to target Python 3.6+ for runtime compatibility.  
+    - Ensure required packages like `black` are installed in "dev mode" (`pip install -e .[dev]`).
+    - Added a `lint.sh` script to run Black, ruff, and mypy in one go.
+    - Added additional unit tests for different scenarios, including the new `keep_file_open` option.
+    - Better configuration of test coverage, which is now approx. 74% of the main file, with most 
+      non-covered code consisting of error conditions and fallbacks which aren't crucial to test.
+
 - 0.9.25:
   - Improvements to project config (`pyproject.toml`) with `hatch` (PR #65), and the addition of
     Python typing hints (PR #69). Thanks @stumpylog.

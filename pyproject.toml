@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "concurrent-log-handler"
 dynamic = ["version"]
-description = "RotatingFileHandler replacement with concurrency, gzip and Windows support"
+description = "RotatingFileHandler replacement with concurrency, gzip and Windows support. Size and time based rotation."
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.6"
@@ -36,6 +36,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Logging",
 ]
