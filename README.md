@@ -357,10 +357,7 @@ If you plan to modify or contribute to CLH:
 5. **Build for distribution:**
 
    ```bash
-   # Ensure clean build
-   python setup.py clean --all
-   # Build sdist and wheel
-   python setup.py build sdist bdist_wheel
+   hatch build --clean
    ```
 
    The distributable files will be in the `dist/` folder. To upload (maintainers only):
