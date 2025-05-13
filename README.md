@@ -1,9 +1,13 @@
 # Concurrent Log Handler (CLH)
 
 [![PyPI version](https://img.shields.io/pypi/v/concurrent-log-handler.svg)](https://pypi.org/project/concurrent-log-handler/)
+[![Downloads](https://img.shields.io/pypi/dm/concurrent-log-handler.svg)](https://pepy.tech/project/concurrent-log-handler)
+[![Stars](https://img.shields.io/github/stars/Preston-Landers/concurrent-log-handler.svg)](https://github.com/Preston-Landers/concurrent-log-handler/stargazers)
+[![Forks](https://img.shields.io/github/forks/Preston-Landers/concurrent-log-handler.svg)](https://github.com/Preston-Landers/concurrent-log-handler/network/members)
 [![Python versions](https://img.shields.io/pypi/pyversions/concurrent-log-handler.svg)](https://pypi.org/project/concurrent-log-handler/)
 [![License](https://img.shields.io/pypi/l/concurrent-log-handler.svg)](https://github.com/Preston-Landers/concurrent-log-handler/blob/main/LICENSE)
 [![Build Status](https://img.shields.io/github/actions/workflow/status/Preston-Landers/concurrent-log-handler/clh_tests.yaml?branch=master)](https://github.com/Preston-Landers/concurrent-log-handler/actions)
+[![Contributors](https://img.shields.io/github/contributors/Preston-Landers/concurrent-log-handler.svg)](https://github.com/Preston-Landers/concurrent-log-handler/graphs/contributors)
 
 The `concurrent-log-handler` package provides robust logging handlers for Python's standard `logging` package (PEP 282).
 It enables multiple processes (and threads) to safely write to a single log file, with built-in support for size-based
