@@ -18,11 +18,24 @@ network drive, and require a centralized logging solution without the complexity
 
 ## What's new
 
+See [CHANGELOG.md](CHANGELOG.md) for details.
+
 - **Version 0.9.26**: (May 2025)
   - Improved performance, especially on POSIX systems.
   - Added testing for Python 3.13 and improved project configuration and documentation.
-
-Details in the [CHANGELOG.md](CHANGELOG.md).
+- **Important Notice (May 2025): Deprecation of Generic Background Logging Utility**
+    - The `concurrent_log_handler.queue` module, including the `setup_logging_queues()` function, is now **deprecated**.
+    - This feature was intended to provide a generic way (not specific to CLH) to make standard logging handlers 
+      non-blocking. However, it has proven to have compatibility issues with more complex logging setups (such as 
+      those using `structlog`) and presents other robustness concerns.
+    - **This utility will be removed or completely redesigned in a future major release (e.g., v1.0.0).**
+    - The core log handlers (`ConcurrentRotatingFileHandler`, `ConcurrentTimedRotatingFileHandler`) are 
+      **not** affected by this deprecation and remain fully supported in synchronous mode. The performance
+      implications of using synchronous logging are likely to be negligible for many applications, but 
+      you should test this in your environment.
+    - If you are currently using `concurrent_log_handler.queue.setup_logging_queues()` you are advised to transition 
+      away from it. See [Asynchronous Logging](#background--asynchronous-logging) below for more details 
+      and recommendations.
 
 ## Key Features
 
@@ -30,6 +43,8 @@ Details in the [CHANGELOG.md](CHANGELOG.md).
   corrupting each other's messages.
   - Note that this happens in a blocking manner; i.e., if one process is writing to the log file, other
     processes will wait until the first process is done before writing their messages.
+  - Note that your application process/thread writing the log message will also block while waiting to 
+    write to the log file.
 - **File Rotation:**
   - `ConcurrentRotatingFileHandler`: Rotates logs when they reach a specified size.
   - `ConcurrentTimedRotatingFileHandler`: Rotates logs based on time intervals (e.g., hourly, daily) and optionally by
@@ -39,8 +54,9 @@ Details in the [CHANGELOG.md](CHANGELOG.md).
   emission and rotation.
   - Advisory means that other (e.g., external) processes could ignore the lock on POSIX.
 - **Log Compression:** Optionally compresses rotated log files using gzip (`use_gzip=True`).
-- **Asynchronous Logging:** Includes an optional `QueueListener` / `QueueHandler` for background logging, minimizing
-  impact on application performance.
+- **Asynchronous Logging: (Deprecated)** Includes an optional `QueueListener` / `QueueHandler` for background logging, 
+    minimizing impact on application performance.
+    - Important: see the note below about the [deprecation of this feature](#background--asynchronous-logging).
 - **Customizable:**
   - Control over rotated file naming (`namer`).
   - Set owner and mode permissions for rotated files on Unix-like systems.
@@ -269,43 +285,50 @@ recommended for `kwargs` support in config files.
 
 ## Background / Asynchronous Logging
 
-For improved performance, especially in I/O-bound applications, CLH provides a utility to easily convert configured
-handlers to use a background logging thread. Log messages are placed on a queue and processed by a separate thread,
-allowing your application to continue without waiting for disk I/O.
+**Deprecated Feature**
 
-Otherwise, logging calls are blocking, meaning the application will wait for the log message to be written to disk
-before continuing to run the next line of code.
+Previous versions of `concurrent-log-handler` included a utility module, `concurrent_log_handler.queue`, which provided
+a `setup_logging_queues()` function. This function aimed to convert all existing standard Python logging handlers
+(not just those belonging to CLH) into non-blocking (asynchronous) handlers by routing log messages through a 
+background thread and queue.
 
-```python
-import logging
-from concurrent_log_handler import ConcurrentRotatingFileHandler
-from concurrent_log_handler.queue import setup_logging_queues
+**This generic backgrounding utility (`setup_logging_queues()` and the `queue.py` module) is now deprecated and will be
+removed or completely redesigned in a future major release.**
 
-# 1. Setup your logging as usual
-logger = logging.getLogger("my_app")
-handler = ConcurrentRotatingFileHandler("app.log", maxBytes=1024 * 1024, backupCount=5)
-logger.addHandler(handler)
-logger.setLevel(logging.INFO)
+### Why is this happening?
 
-# 2. Convert handlers to use background queues
-setup_logging_queues()
+A few reasons:
 
-# Now, logging calls are non-blocking
-logger.info("This message will be processed in a background thread.")
-```
+1. **Compatibility issues:** The generic approach of modifying existing handlers is incompatible with
+   some advanced logging configurations and libraries (e.g., `structlog`) that have specific expectations about
+   `LogRecord` attributes or the logging flow.
+2. **Robustness:** The current implementation has inherent limitations, such as:
+    * Using an unbounded queue, which could lead to excessive memory consumption if log messages are produced faster
+      than they can be written to disk.
+    * Lack of direct feedback or error propagation from the background logging thread to the application.
+3. **Maintenance:** Ensuring such a generic utility works reliably across all possible Python
+   logging setups and handler types is complex and difficult to make "bulletproof."
+   The `queue.py` module has no direct relationship to the CLH log handler core functionality and is essentially 
+   independent utility code.
 
-**Important Considerations for Background Logging:**
+### What should I do?
 
-- **Unbounded Queue:** The current implementation uses an unbounded queue. If log messages are generated faster than
-  they can be written to disk, the queue will grow indefinitely, potentially consuming all available memory. This is a
-  known limitation and may be addressed in a future release.
-- **No Completion Feedback:** There's no direct way for the caller to know when a log message has actually been written
-  to disk (no "Future" or "Promise" is returned).
-- **Application Shutdown:** Ensure proper logger shutdown (e.g., `logging.shutdown()`) to flush the queue, especially if
-  messages at the end of the application's lifecycle are critical.
+* If you are currently using `setup_logging_queues()`, I strongly advise you to **stop using it** and rely on the
+  standard blocking behavior of the `ConcurrentRotatingFileHandler` and `ConcurrentTimedRotatingFileHandler`. For many
+  applications, the performance impact of direct blocking writes is relatively small, especially on POSIX (e.g. Linux) 
+  with recent updates to CLH.
+* If non-blocking logging is a critical requirement for your application, consider these alternatives:
+    * Implement a custom queuing solution specific to your application's logging needs and handlers.
+    * Check the asynchronous capabilities within your application framework.
+    * The standard library's `logging.handlers.QueueHandler` and `logging.handlers.QueueListener` can serve as building
+      blocks for custom solutions if you wish to manage the listener and its target handlers directly. You can copy
+      the code from `queue.py` in this repository to use as a reference or starting point.
+* I'm looking into more robust, and potentially fully integrated, ways to offer optional background logging 
+  capability directly within the main CLH handlers in the future.
 
-Refer to the docstring in `concurrent_log_handler/queue.py`
-and [src/example.py](src/example.py) for more details.
+The next version of Concurrent Log Handler will add a DeprecationWarning for the `setup_logging_queues()` function.
+The `src/example.py` file may still contain examples related to this deprecated feature during a transition period, but
+they should not be used for new development.
 
 ## Best Practices and Limitations
 
