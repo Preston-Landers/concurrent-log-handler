@@ -1,5 +1,19 @@
 # Change Log
 
+- 0.9.28:
+
+  - Fix `NameError` when logging during Python shutdown.
+    [Issue #80](https://github.com/Preston-Landers/concurrent-log-handler/issues/80):
+  
+    During Python interpreter shutdown, built-in functions like `open` can be
+    cleaned up before `__del__` methods run, causing NameError when libraries (e.g.,
+    `aiohttp`) attempt to log warnings about unclosed resources. This change stores
+    references to `open` and `os.open` at module level (`_open` and `_os_open`) and
+    uses these throughout the code, following the standard Python pattern for
+    shutdown-safe code. Adds new unit tests that verify logging works correctly
+    during shutdown scenarios, including extreme cases where even stored references
+    might become None.
+
 - 0.9.27:
 
   - Fixes [Issue #73](https://github.com/Preston-Landers/concurrent-log-handler/issues/73)

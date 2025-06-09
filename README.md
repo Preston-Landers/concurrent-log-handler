@@ -24,6 +24,9 @@ or links within the document either, try viewing
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
 
+- **Version 0.9.28**: (June 10th, 2025)
+  - Fixes errors when apps, esp. asyncio based, try to log during interpreter shutdown.
+    Issue [#80](https://github.com/Preston-Landers/concurrent-log-handler/issues/80)
 - **Version 0.9.27**: (June 6th, 2025)
   - Fixes Issue [#73](https://github.com/Preston-Landers/concurrent-log-handler/issues/73)
     Fix timed rotation handler's file cleanup logic.
@@ -437,12 +440,15 @@ If you plan to modify or contribute to CLH:
    ```bash
    # Run tests on the current (venv) Python version
    pytest
+   
+   # or run:
+   hatch test
 
    # Generate coverage report
    pytest --cov --cov-report=html --cov-report=xml --cov-report=lcov --cov-report=term-missing
 
-   # Run tests across all supported Python versions
-   hatch test
+   # Tests across all supported Python versions in the GitHub Actions matrix
+   # However, Python 3.6 and 3.7 are not supported by GitHub Actions due to their EOL status.
    ```
 
 5. **Build for distribution:**

@@ -106,6 +106,12 @@ HAS_CHMOD: bool = hasattr(os, "chmod")
 
 LogFilenameType = Union[str, os.PathLike]
 
+# Store references to built-in functions that we need during shutdown.
+# During interpreter shutdown, these names might be set to None in the global namespace,
+# causing NameError when code runs in __del__ or atexit handlers.
+_open = open
+_os_open = os.open
+
 
 class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     """Handler for logging to a set of files, which switches from one file to the
@@ -325,17 +331,26 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self._do_chown_and_chmod(lock_file)
 
     def atomic_open(self, file_path: str) -> TextIOWrapper:
+        # During shutdown, even our stored references might be None
+        if _open is None:
+            raise RuntimeError("Cannot open file during Python shutdown")
+
         try:
             # Attempt to open the file in "r+" mode
-            file = open(file_path, "r+", encoding=self.encoding, newline=self.newline)
-        except FileNotFoundError:
+            file = _open(file_path, "r+", encoding=self.encoding, newline=self.newline)
+        except FileNotFoundError as e:
             # If the file doesn't exist, create it atomically and open in "r+" mode
+            if _os_open is None:
+                self._console_log(  # type: ignore[unreachable]
+                    "Cannot create file during Python shutdown", stack=True
+                )
+                raise RuntimeError("Cannot create file during Python shutdown") from e
             try:
-                fd = os.open(file_path, os.O_CREAT | os.O_EXCL | os.O_RDWR)
-                file = open(fd, "r+", encoding=self.encoding, newline=self.newline)
+                fd = _os_open(file_path, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+                file = _open(fd, "r+", encoding=self.encoding, newline=self.newline)
             except FileExistsError:
                 # If the file was created between the first check and our attempt to create it, open it in "r+" mode
-                file = open(
+                file = _open(
                     file_path, "r+", encoding=self.encoding, newline=self.newline
                 )
         return file
@@ -355,8 +370,12 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         if mode is None:
             mode = self.mode
 
+        # During shutdown, even our stored references might be None
+        if _open is None:
+            raise RuntimeError("Cannot open file during Python shutdown")
+
         with self._alter_umask():
-            stream = open(
+            stream = _open(
                 self.baseFilename,
                 mode=mode,
                 encoding=self.encoding,
@@ -756,10 +775,18 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         if not gzip:
             self._console_log("#no gzip available", stack=False)
             return
+
+        # Check if we can still open files during shutdown
+        if _open is None:
+            self._console_log(  # type: ignore[unreachable]
+                "Cannot open files during Python shutdown, skipping gzip", stack=False
+            )
+            return
+
         out_filename = input_filename + ".gz"
         success = False
         try:
-            with open(input_filename, "rb") as input_fh, gzip.open(
+            with _open(input_filename, "rb") as input_fh, gzip.open(
                 out_filename, "wb"
             ) as gzip_fh:
                 while True:
