@@ -18,7 +18,7 @@ import psutil
 
 def run_and_measure():  # noqa: C901, PLR0915
     start_time = time.time()
-    pytest_cmd = [sys.executable, "-m", "pytest"] + sys.argv[1:]
+    pytest_cmd = [sys.executable, "-m", "pytest", *sys.argv[1:]]
     process = subprocess.Popen(pytest_cmd)  # noqa: S603
 
     # Track our main process

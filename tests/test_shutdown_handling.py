@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# ruff: noqa: S101, S603
+# ruff: noqa: S603
 
 """
 Test cases for proper handling of Python shutdown scenarios.
@@ -30,8 +30,7 @@ def test_logging_during_shutdown():
         log_file = Path(tmpdir) / "test_shutdown.log"
 
         # Create a test script that will log during shutdown
-        test_script = textwrap.dedent(
-            f'''
+        test_script = textwrap.dedent(f'''
             import logging.config
             import sys
             import os
@@ -91,8 +90,7 @@ def test_logging_during_shutdown():
 
             logger.info("Script completed, shutdown will begin")
             # When Python exits, it will trigger keeper.__del__()
-        '''
-        )
+        ''')
 
         # Run the test script in a subprocess
         result = subprocess.run(
@@ -145,8 +143,7 @@ def test_logging_during_extreme_shutdown():
         log_file = Path(tmpdir) / "test_extreme_shutdown.log"
 
         # Create a test script that simulates extreme shutdown conditions
-        test_script = textwrap.dedent(
-            f"""
+        test_script = textwrap.dedent(f"""
             import logging.config
             import sys
             import os
@@ -203,8 +200,7 @@ def test_logging_during_extreme_shutdown():
                 # Don't fail on other errors as logging might partially work
 
             # Success - we handled the extreme case without NameError
-        """
-        )
+        """)
 
         # Run the test script
         result = subprocess.run(
@@ -236,8 +232,7 @@ def test_multiple_handlers_during_shutdown():
         log_file1 = Path(tmpdir) / "test_shutdown1.log"
         log_file2 = Path(tmpdir) / "test_shutdown2.log"
 
-        test_script = textwrap.dedent(
-            f"""
+        test_script = textwrap.dedent(f"""
             import logging.config
             import sys
             import os
@@ -292,8 +287,7 @@ def test_multiple_handlers_during_shutdown():
             # Keep them alive until shutdown
             import __main__
             __main__.keepers = keepers
-        """
-        )
+        """)
 
         result = subprocess.run(
             [sys.executable, "-c", test_script],

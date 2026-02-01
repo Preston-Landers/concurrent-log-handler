@@ -1,4 +1,4 @@
-# ruff: noqa: S101, INP001
+# ruff: noqa: INP001
 
 """Test custom suffix configuration via finalize_handler_configuration hook."""
 

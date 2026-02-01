@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# ruff: noqa: S101, PT006
 
 """
 Pytest based unit test cases to drive stresstest.py.

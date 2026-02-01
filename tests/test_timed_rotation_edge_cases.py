@@ -1,4 +1,4 @@
-# ruff: noqa: S101, INP001, PGH003
+# ruff: noqa: INP001
 
 import datetime
 import sys
