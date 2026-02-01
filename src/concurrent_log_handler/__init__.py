@@ -908,6 +908,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         )
         self.num_rollovers = 0
         self.__internal_close()
+        self.finalize_handler_configuration()
         self.initialize_rollover_time()
 
     def __internal_close(self) -> None:
@@ -1087,6 +1088,21 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         lock_file.flush()
         os.fsync(lock_file.fileno())
         self._console_log(f"Wrote rollover time: {self.rolloverAt}")
+
+    def finalize_handler_configuration(self) -> None:
+        """Hook method called during initialization, after parent class setup but
+        before the first potential rollover.
+
+        Subclasses can override this method to customize handler configuration such as
+        self.suffix, self.namer, or other attributes before initialize_rollover_time()
+        is called (which may trigger an initial rollover if the time is in the past).
+
+        Example:
+            class CustomHandler(ConcurrentTimedRotatingFileHandler):
+                def finalize_handler_configuration(self):
+                    super().finalize_handler_configuration()
+                    self.suffix = "%Y-%m-%d_%H-%M-%S.log"
+        """
 
     def initialize_rollover_time(self) -> None:
         """Run by the __init__ to read an existing rollover time from the lockfile,

@@ -63,8 +63,8 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
 - **Python 3.6 through current versions:** Modern Python support.
 - **Focused Design:** Reliably handles file operations. For non-blocking behavior, see our recommended
   [Application-Level Performance Patterns](./docs/patterns.md), including patterns for
-  [graceful degradation](./docs/patterns.md#pattern-2-graceful-degradation) to synchronous logging, 
-  or using sync logging only for [higher priority](./docs/patterns.md#pattern-3-critical-vs-background-logging) 
+  [graceful degradation](./docs/patterns.md#pattern-2-graceful-degradation) to synchronous logging,
+  or using sync logging only for [higher priority](./docs/patterns.md#pattern-3-critical-vs-background-logging)
   levels.
 
 ## Primary Use Cases
@@ -234,8 +234,38 @@ handler = ConcurrentTimedRotatingFileHandler(
 
 It's recommended to use keyword arguments when configuring this class due to the number of parameters and their
 ordering. For more details on time-based rotation options (`when`, `interval`, `utc`), refer to the Python standard
-library documentation for 
+library documentation for
 [`TimedRotatingFileHandler`](https://docs.python.org/3/library/logging.handlers.html#logging.handlers.TimedRotatingFileHandler).
+
+#### Customizing via Subclassing
+
+If you need to customize the handler behavior (e.g., use a custom filename suffix format), you can subclass
+`ConcurrentTimedRotatingFileHandler` and override the `finalize_handler_configuration()` hook method. This method
+is called after parent class initialization but before the first potential rollover, allowing you to safely customize
+attributes like `self.suffix` or `self.namer`.
+
+```python
+from concurrent_log_handler import ConcurrentTimedRotatingFileHandler
+
+class CustomSuffixHandler(ConcurrentTimedRotatingFileHandler):
+    def __init__(self, filename, custom_suffix=None, **kwargs):
+        self.custom_suffix = custom_suffix
+        super().__init__(filename, **kwargs)
+
+    def finalize_handler_configuration(self):
+        """Override to customize handler before first rollover."""
+        super().finalize_handler_configuration()
+        if self.custom_suffix:
+            self.suffix = self.custom_suffix
+
+# Use custom suffix format
+handler = CustomSuffixHandler(
+    "app.log",
+    custom_suffix="%Y-%m-%d_%H-%M-%S.log",
+    when="D",
+    backupCount=7
+)
+```
 
 ### Common Configuration Options
 
@@ -456,7 +486,7 @@ If you plan to modify or contribute to CLH:
    ```bash
    # Run tests on the current (venv) Python version
    pytest
-   
+
    # or run:
    hatch test
 

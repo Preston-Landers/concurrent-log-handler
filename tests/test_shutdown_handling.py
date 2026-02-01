@@ -126,7 +126,7 @@ def test_logging_during_shutdown():
 
         # Should contain the shutdown log message (from __del__)
         # Note: In some Python versions, __del__ might not be called during shutdown in our test
-        if "Logging during __del__" not in log_content: 
+        if "Logging during __del__" not in log_content:
             print(
                 f"Shutdown log message not found. This might mean __del__ wasn't called "
                 f"or logging failed silently. Content:\n{log_content}",
