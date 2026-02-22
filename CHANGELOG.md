@@ -1,18 +1,30 @@
 # Change Log
 
+- 0.9.29
+
+  - Fix race conditions when a handler created before `fork()` is used by multiple child processes. Child processes
+    that inherit a handler now automatically reopen the lock file for independent lock isolation, and an in-process
+    threading lock prevents concurrent threads from bypassing flock() serialization.
+    - Re-initializing logging post-fork is still recommended (see README.md "Important Usage Guidelines")
+
+  - Depend on portalocker >= 2.6.0 instead of 1.6.0. Earlier versions of portalocker on Windows can be problematic.
+
+  - Add `finalize_handler_configuration()` hook to ConcurrentTimedRotatingFileHandler to allow customization of the
+    handler before the first rollover.
+
 - 0.9.28:
 
   - Fix missing rollovers when a worker was restarted before the next logging event,
     but after the last scheduled rollover.
     [Issue #81](https://github.com/Preston-Landers/concurrent-log-handler/issues/81):
 
-    When restarting after missing scheduled rollover times, the handler was updating to the 
-    next future rollover without actually rotating accumulated logs. Now performs catch-up 
+    When restarting after missing scheduled rollover times, the handler was updating to the
+    next future rollover without actually rotating accumulated logs. Now performs catch-up
     rollovers on initialization. Also adds a unit test to simulate this scenario.
 
   - Fix `NameError` when logging during Python shutdown.
     [Issue #80](https://github.com/Preston-Landers/concurrent-log-handler/issues/80):
-  
+
     During Python interpreter shutdown, built-in functions like `open` can be
     cleaned up before `__del__` methods run, causing NameError when libraries (e.g.,
     `aiohttp`) attempt to log warnings about unclosed resources. This change stores
@@ -25,7 +37,7 @@
 - 0.9.27:
 
   - Fixes [Issue #73](https://github.com/Preston-Landers/concurrent-log-handler/issues/73)
-  
+
     Fixed a subtle bug in the timed handler where it could fail to delete the
     correct number of old log files during rotation.
 
