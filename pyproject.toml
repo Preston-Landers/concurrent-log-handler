@@ -52,7 +52,7 @@ dev = [
   "pytest-mock",
   "pytest-sugar",
   "pytest-cov",
-  "pytest-count",
+  "pytest-repeat",
   "black>=26.1.0",
   "ruff>=0.15.2",
 ]

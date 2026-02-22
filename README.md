@@ -27,6 +27,10 @@ or links within the document either, try viewing
 See [CHANGELOG.md](CHANGELOG.md) for details.
 
 - **Version 0.9.29**: (February 2026)
+  - Fix race conditions when a handler created before `fork()` is used by multiple child processes. Child processes
+    that inherit a handler now automatically reopen the lock file for independent lock isolation, and an in-process
+    threading lock prevents concurrent threads from bypassing flock() serialization.
+    - Re-initializing logging post-fork (see [Usage Guidelines](#usage-guidelines)) is still recommended.
   - Depend on portalocker >= 2.6.0 instead of 1.6.0. Earlier versions of portalocker on Windows can be problematic.
   - Add `finalize_handler_configuration()` hook to ConcurrentTimedRotatingFileHandler to allow customization of the
     handler before the first rollover.
@@ -42,8 +46,8 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
   - Fixes Issue [#79](https://github.com/Preston-Landers/concurrent-log-handler/issues/79)
     Harden timed handler's rollover mechanism against timestamp errors or other sync corruption.
 
-- **Important Notice (June 2025): Background Logging Utility Deprecated**
-  - The `concurrent_log_handler.queue` module is now **deprecated** (will be removed in v1.0.0).
+- **Important Notice (June 2025): Background Logging Utility Removed**
+  - The `concurrent_log_handler.queue` module was removed in version 0.9.28.
   - It has compatibility issues with complex logging setups and other robustness concerns.
   - **Recommendation:**
     - Simply use the standard CLH handlers (`ConcurrentRotatingFileHandler` or
@@ -154,8 +158,9 @@ in mind:
    - This limitation is because the file lock objects and other internal states within the handler cannot be safely
      serialized and shared across process boundaries.
    - This requirement **does not** apply to threads within the same process; threads can share a single CLH instance.
-   - This requirement also **may not** apply to child processes created via `fork()` (e.g., with Gunicorn `--preload`),
-     where file descriptors might be inherited. However, explicit instantiation in each process is the safest approach.
+   - This requirement also applies to child processes created via `fork()` (e.g., Gunicorn with `--preload`, uWSGI, or
+     `multiprocessing` with the fork start method). Forked children inherit the parent's file descriptors, which
+     causes file locks to silently fail to serialize between processes. See item 3 below for the recommended pattern.
 
 2. **Multiprocessing and Spawn mode:**
 
@@ -167,7 +172,67 @@ in mind:
    - Usually this means you can call your standard logging setup function in the child.
    - Don't just initialize your logging code in the parent process and allow child processes to inherit loggers.
 
-3. **Consistent Configuration:**
+3. **Using `fork()` (Gunicorn, uWSGI, multiprocessing with `fork` start method):**
+
+On Linux, depending on the version of Python, `multiprocessing` defaults to the `fork` start method. Frameworks like
+Gunicorn with `--preload` and uWSGI also fork worker processes from a parent that has already initialized logging.
+
+While CLH v0.9.29+ has internal safeguards for this scenario, the cleanest approach is to re-initialize
+logging in each child process. Python 3.7+ provides `os.register_at_fork()` for this:
+
+```python
+import logging
+import logging.config
+import os
+
+_LOGGING_CONFIG = None  # Store your logging config dict
+_fork_handler_registered = False
+
+def setup_logging():
+    global _LOGGING_CONFIG, _fork_handler_registered
+
+    config = {
+        # Your logging.config.dictConfig()-compatible dict here
+    }
+    _LOGGING_CONFIG = config
+    logging.config.dictConfig(config)
+
+    if hasattr(os, "register_at_fork") and not _fork_handler_registered:
+        _fork_handler_registered = True
+        os.register_at_fork(after_in_child=_reset_logging_in_child)
+
+def _reset_logging_in_child():
+    """Called automatically in forked child processes."""
+    if not _LOGGING_CONFIG:
+        return
+    # Close inherited handlers (releases stale file descriptors and locks)
+    root = logging.getLogger()
+    for handler in root.handlers:
+        handler.close()
+    root.handlers.clear()
+
+    # Re-initialize from scratch — child gets its own file descriptors
+    logging.config.dictConfig(_LOGGING_CONFIG)
+```
+
+**Why this matters:** File locks (`flock`) are tied to the *open file description*, not the file descriptor number.
+When a child inherits the parent's lock-file FD, both processes share the same lock object — meaning `flock()`
+calls in the child don't actually block against the parent or siblings. Re-creating the handler gives each process
+its own independent file description.
+
+For Gunicorn specifically, you can call your logging setup in the `post_fork` hook:
+
+```python
+# gunicorn.conf.py
+def post_fork(server, worker):
+    from myapp.logging import setup_logging
+    setup_logging()
+```
+
+On platforms where `os.register_at_fork` is unavailable, or when using the `spawn` start method, simply call your
+logging setup function at the start of each worker process.
+
+4. **Consistent Configuration:**
 
    - All processes writing to the _same log file_ **must** use identical settings for the CLH handler (e.g.,
      `maxBytes`, `backupCount`, `use_gzip`, rotation interval, etc.).

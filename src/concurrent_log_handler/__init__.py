@@ -59,6 +59,7 @@ import errno
 import logging
 import os
 import sys
+import threading
 import time
 import traceback
 import warnings
@@ -275,6 +276,21 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         self.lockFilename = self.getLockFilename(lock_file_directory)
         self.is_locked = False
+        # In-process thread serialisation.  flock() is per-open-file-description
+        # and does NOT serialise threads that share the same FD.  The RLock here
+        # fills that gap and makes emit() safe to call directly from concurrent
+        # threads (the standard Logger→Handler.handle() path also uses an RLock
+        # from logging.Handler, but we can't rely on that always being held).
+        # RLock (rather than Lock) lets the same thread re-enter _do_lock() via
+        # recursive logging without deadlocking.
+        self._thread_lock: threading.RLock = threading.RLock()
+        # Capture the PID at creation so we can detect if this handler is later
+        # used in a forked child process.  flock() locks are per-open-file-
+        # description; when a child inherits the parent's lock-file FD the two
+        # processes share the same description and therefore appear to both hold
+        # the lock simultaneously.  We detect the fork in _do_lock() and reopen
+        # the file to obtain an independent description.
+        self._creation_pid: int = os.getpid()
 
         # This is primarily for the benefit of the unit tests.
         self.num_rollovers = 0
@@ -544,29 +560,76 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             self._close()
 
     def _do_lock(self) -> None:
-        if self.is_locked:
-            return  # already locked... recursive?
+        # Acquire the in-process threading RLock first.
+        # flock() is per-open-file-description and does NOT prevent two threads
+        # in the same process (sharing the same FD) from both "holding" the lock
+        # simultaneously.  The RLock here serialises concurrent threads.
+        # RLock (not Lock) lets the same thread re-enter _do_lock() via recursive
+        # logging without deadlocking; the is_locked guard still causes those
+        # recursive calls to return immediately.
+        self._thread_lock.acquire()
 
-        # Open the lock file if it's not already open
-        if self.stream_lock is None or self.stream_lock.closed:
-            self._open_lockfile()
-
-        if self.stream_lock:
-            for _i in range(self.maxLockAttempts):
-                try:
-                    lock(self.stream_lock, LOCK_EX)
-                    self.is_locked = True
-                    # self._console_log("Acquired lock")
-                    break
-                except Exception:
-                    time.sleep(0.001)  # Small delay to reduce CPU spinning
-                    continue
-            else:
-                raise RuntimeError(
-                    f"Cannot acquire lock after {self.maxLockAttempts} attempts"
+        # Local flag: should the finally block below release the RLock?
+        # True for every early-exit path (recursive call, no stream_lock, error).
+        # False only when the flock is also acquired; in that case _do_unlock()
+        # owns the matching release so there is no shared mutable state involved.
+        release_in_finally = True
+        try:
+            # Detect fork: flock() locks are per-open-file-description, so a
+            # child process that inherits the parent's lock-file FD shares the
+            # same lock object.  Both the parent and all forked siblings appear
+            # to already hold the lock, meaning flock() never blocks them
+            # against each other.  Reopening the file gives this process its
+            # own independent description.
+            current_pid = os.getpid()
+            if current_pid != self._creation_pid:
+                self._console_log(
+                    f"Fork detected (handler created in PID {self._creation_pid}, "
+                    f"now running in PID {current_pid}). "
+                    "Reopening lock file for independent lock isolation.",
+                    stack=False,
                 )
-        else:
-            self._console_log("No self.stream_lock to lock", stack=True)
+                if self.stream_lock and not self.stream_lock.closed:
+                    with suppress(Exception):
+                        self.stream_lock.close()
+                self.stream_lock = None
+                self.is_locked = False  # child does not inherit parent's lock state
+                self._creation_pid = current_pid
+
+            if self.is_locked:
+                # Recursive call from the same thread (e.g. formatter triggered
+                # a log message).  Return without re-acquiring; the finally
+                # block releases the thread lock we just acquired.
+                return
+
+            # Open the lock file if it's not already open
+            if self.stream_lock is None or self.stream_lock.closed:
+                self._open_lockfile()
+
+            if self.stream_lock:
+                for _i in range(self.maxLockAttempts):
+                    try:
+                        lock(self.stream_lock, LOCK_EX)
+                        self.is_locked = True
+                        # Success: _do_unlock() is now responsible for releasing
+                        # the thread lock; the finally block must not do so.
+                        release_in_finally = False
+                        # self._console_log("Acquired lock")
+                        break
+                    except Exception:
+                        time.sleep(0.001)  # Small delay to reduce CPU spinning
+                        continue
+                else:
+                    raise RuntimeError(
+                        f"Cannot acquire lock after {self.maxLockAttempts} attempts"
+                    )
+            else:
+                self._console_log("No self.stream_lock to lock", stack=True)
+        finally:
+            if release_in_finally:
+                # Recursive call, no stream_lock, or lock acquisition failed:
+                # release the thread lock we acquired at the top.
+                self._thread_lock.release()
 
     def _do_unlock(self) -> None:
         if self.stream_lock:
@@ -579,6 +642,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     if not self._actual_keep_lock_file_open:
                         self.stream_lock.close()
                         self.stream_lock = None
+                    # Balance the _thread_lock.acquire() from _do_lock().
+                    # _do_lock() set release_in_finally=False when it succeeded,
+                    # so the thread lock is still held here and needs releasing.
+                    self._thread_lock.release()
         else:
             self._console_log("No self.stream_lock to unlock", stack=True)
 

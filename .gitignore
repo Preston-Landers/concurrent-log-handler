@@ -24,3 +24,4 @@ tmp
 coverage.xml
 lcov.info
 .python-version
+.claude
