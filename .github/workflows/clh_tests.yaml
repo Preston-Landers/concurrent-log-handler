@@ -12,10 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v4
         with:
-          python-version: "3.13"
+          python-version: "3.14"
           cache: "pip"
       - name: Install Hatch
         run: |
@@ -31,8 +31,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        # python-version: [ "3.8.18", "3.9.22", "3.10.17", "3.11.12", "3.12.10", "3.13.3", "3.14.0" ]
-        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12", "3.13" ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14" ]
         os: [ ubuntu-latest ]
         include:
           # Unfortunately these older versions are no longer supported by GH
@@ -40,7 +39,7 @@ jobs:
           #            os: ubuntu-22.04
           - python-version: "3.7"
             os: ubuntu-22.04
-          - python-version: "3.13"
+          - python-version: "3.14"
             os: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -61,10 +60,10 @@ jobs:
       - lint
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.13
+      - name: Set up Python 3.14
         uses: actions/setup-python@v4
         with:
-          python-version: "3.13"
+          python-version: "3.14"
           cache: pip
       - name: Install Hatch
         run: |
