@@ -41,7 +41,7 @@ classifiers = [
     "Topic :: System :: Logging",
 ]
 dependencies = [
-    "portalocker>=1.6.0",
+    "portalocker>=2.6.0",
 ]
 
 [project.optional-dependencies]

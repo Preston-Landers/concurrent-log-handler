@@ -26,7 +26,11 @@ or links within the document either, try viewing
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
 
-- **Version 0.9.28**: (June 10th, 2025)
+- **Version 0.9.29**: (February 2026)
+  - Depend on portalocker >= 2.6.0 instead of 1.6.0. Earlier versions of portalocker on Windows can be problematic.
+  - Add `finalize_handler_configuration()` hook to ConcurrentTimedRotatingFileHandler to allow customization of the
+    handler before the first rollover.
+ - **Version 0.9.28**: (June 10th, 2025)
   - Fixes errors when apps, esp. asyncio based, try to log during interpreter shutdown.
     Issue [#80](https://github.com/Preston-Landers/concurrent-log-handler/issues/80)
   - Fix missing rollovers when a worker was restarted before the next logging event,
@@ -97,6 +101,8 @@ pip install concurrent-log-handler
 ```
 
 This will also install `portalocker`. On Windows, `portalocker` has a dependency on `pywin32`.
+Note that we now require at least portalocker 2.6.0, which among other things, explicitly
+declares its dependency on `pywin32` if needed.
 
 To install from source:
 
