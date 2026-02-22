@@ -97,7 +97,7 @@ def test_getFilesToDelete_ignores_unparseable_dates(tmp_path: Path, mocker):
         - 86400 * 10,  # 10 days old
     }
     # We don't need to provide mtimes for the valid files as they shouldn't be used
-    mocker.patch("os.path.getmtime", side_effect=lambda path: mtime_map.get(path))
+    mocker.patch("os.path.getmtime", side_effect=mtime_map.get)
 
     # Mock the console logger to check the output
     mock_console_log = mocker.patch.object(handler, "_console_log")

@@ -52,8 +52,9 @@ dev = [
   "pytest-mock",
   "pytest-sugar",
   "pytest-cov",
+  "pytest-count",
   "black>=26.1.0",
-  "ruff>=0.14.14",
+  "ruff>=0.15.2",
 ]
 [project.urls]
 Homepage = "https://github.com/Preston-Landers/concurrent-log-handler"
@@ -98,14 +99,14 @@ cov = [
 ]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+python = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.lint]
 detached = true
 dependencies = [
-  "black>=23.9.1",
+  "black>=26.1.0",
   "mypy>=1.6.0",
-  "ruff>=0.1.0",
+  "ruff>=0.15.2",
   "portalocker",
 ]
 

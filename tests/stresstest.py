@@ -40,7 +40,7 @@ class TestOptions:
     __test__ = False  # not a test case itself.
 
     # kwargs to pass to ConcurrentRotatingFileHandler
-    log_opts: dict = field(default_factory=lambda: TestOptions.default_log_opts())
+    log_opts: dict = field(default_factory=lambda: TestOptions.default_log_opts())  # noqa: PLW0108
 
     log_file: str = field(default="stress_test.log")
     log_dir: str = field(default="output_tests")  # Base directory for logs

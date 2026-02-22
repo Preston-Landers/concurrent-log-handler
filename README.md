@@ -476,7 +476,7 @@ If you plan to modify or contribute to CLH:
 3. **Install in editable mode with development dependencies:**
 
    ```bash
-   pip install -e .[dev]
+   pip install -e ".[dev]"
    ```
 
    This installs `hatch`, `black` and other development tools.
