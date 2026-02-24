@@ -10,10 +10,14 @@ insert_final_newline = true
 
 # Matches multiple files with brace expansion notation
 # Set default charset
-[*.{js,py}]
+[*.{js,py,md,sh,toml}]
 charset = utf-8
+
+[*.md]
+trim_trailing_whitespace = true
 
 # 4 space indentation
 [*.py]
 indent_style = space
 indent_size = 4
+trim_trailing_whitespace = true

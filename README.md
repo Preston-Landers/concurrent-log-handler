@@ -11,68 +11,93 @@
 [![Build Status](https://img.shields.io/github/actions/workflow/status/Preston-Landers/concurrent-log-handler/clh_tests.yaml?branch=master)](https://github.com/Preston-Landers/concurrent-log-handler/actions)
 [![Contributors](https://img.shields.io/github/contributors/Preston-Landers/concurrent-log-handler.svg)](https://github.com/Preston-Landers/concurrent-log-handler/graphs/contributors)
 
-The `concurrent-log-handler` package provides robust logging handlers for Python's standard `logging` package (PEP 282).
-It enables multiple processes (and threads) to safely write to a single log file, with built-in support for size-based
-and time-based log rotation and optional log compression.
+The `concurrent-log-handler` package provides robust logging handlers for
+Python's standard `logging` package (PEP 282). It enables multiple processes
+(and threads) to safely write to a single log file, with built-in support for
+size-based and time-based log rotation and optional log compression.
 
-This package is meant for applications that run in multiple processes, potentially across different hosts sharing a
-network drive, and require a centralized logging solution without the complexity of external logging services.
+This package is meant for applications that run in multiple processes,
+potentially across different hosts sharing a network drive, and require a
+centralized logging solution without the complexity of external logging
+services.
 
-NOTE: If you're reading this and the links to files like [CHANGELOG.md](CHANGELOG.md) don't work,
-or links within the document either, try viewing
-[this document on GitHub](https://github.com/Preston-Landers/concurrent-log-handler/) instead.
+NOTE: If you're reading this and the links to files like
+[CHANGELOG.md](CHANGELOG.md) don't work, or links within the document either,
+try viewing
+[this document on GitHub](https://github.com/Preston-Landers/concurrent-log-handler/)
+instead.
 
 ## What's new
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
 
 - **Version 0.9.29**: (February 2026)
-  - Fix race conditions when a handler created before `fork()` is used by multiple child processes. Child processes
-    that inherit a handler now automatically reopen the lock file for independent lock isolation, and an in-process
-    threading lock prevents concurrent threads from bypassing flock() serialization.
-    - Re-initializing logging post-fork (see [Usage Guidelines](#important-usage-guidelines)) is still recommended.
-  - Depend on portalocker >= 2.6.0 instead of 1.6.0. Earlier versions of portalocker on Windows can be problematic.
-  - Add `finalize_handler_configuration()` hook to ConcurrentTimedRotatingFileHandler to allow customization of the
-    handler before the first rollover.
+  - Fix race conditions when a handler created before `fork()` is used by
+    multiple child processes. Child processes that inherit a handler now
+    automatically reopen the lock file for independent lock isolation, and an
+    in-process threading lock prevents concurrent threads from bypassing flock()
+    serialization.
+    - Re-initializing logging post-fork (see
+      [Usage Guidelines](#important-usage-guidelines)) is still recommended.
+  - Depend on portalocker >= 2.6.0 instead of 1.6.0. Earlier versions of
+    portalocker on Windows can be problematic.
+  - Add `finalize_handler_configuration()` hook to
+    ConcurrentTimedRotatingFileHandler to allow customization of the handler
+    before the first rollover.
 - **Version 0.9.28**: (June 10th, 2025)
-  - Fixes errors when apps, esp. asyncio based, try to log during interpreter shutdown.
-    Issue [#80](https://github.com/Preston-Landers/concurrent-log-handler/issues/80)
-  - Fix missing rollovers when a worker was restarted before the next logging event,
-    but after the last scheduled rollover.
+  - Fixes errors when apps, esp. asyncio based, try to log during interpreter
+    shutdown. Issue
+    [#80](https://github.com/Preston-Landers/concurrent-log-handler/issues/80)
+  - Fix missing rollovers when a worker was restarted before the next logging
+    event, but after the last scheduled rollover.
     [Issue #81](https://github.com/Preston-Landers/concurrent-log-handler/issues/81)
 - **Version 0.9.27**: (June 6th, 2025)
-  - Fixes Issue [#73](https://github.com/Preston-Landers/concurrent-log-handler/issues/73)
+  - Fixes Issue
+    [#73](https://github.com/Preston-Landers/concurrent-log-handler/issues/73)
     Fix timed rotation handler's file cleanup logic.
-  - Fixes Issue [#79](https://github.com/Preston-Landers/concurrent-log-handler/issues/79)
-    Harden timed handler's rollover mechanism against timestamp errors or other sync corruption.
+  - Fixes Issue
+    [#79](https://github.com/Preston-Landers/concurrent-log-handler/issues/79)
+    Harden timed handler's rollover mechanism against timestamp errors or other
+    sync corruption.
 
 - **Important Notice (June 2025): Background Logging Utility Removed**
   - The `concurrent_log_handler.queue` module was removed in version 0.9.28.
-  - It has compatibility issues with complex logging setups and other robustness concerns.
+  - It has compatibility issues with complex logging setups and other robustness
+    concerns.
   - **Recommendation:**
     - Simply use the standard CLH handlers (`ConcurrentRotatingFileHandler` or
       `ConcurrentTimedRotatingFileHandler`) directly in your application.
-      Synchronous logging calls are simpler, more reliable, and performant enough for most use cases.
-    - If you need non-blocking logging calls, use the standard library patterns shown in
-      [Performance Patterns](docs/patterns.md).
-  - The core CLH handlers remain fully supported and are not affected by this deprecation.
+      Synchronous logging calls are simpler, more reliable, and performant
+      enough for most use cases.
+    - If you need non-blocking logging calls, use the standard library patterns
+      shown in [Performance Patterns](docs/patterns.md).
+  - The core CLH handlers remain fully supported and are not affected by this
+    deprecation.
 
 - **Version 0.9.26**: (May 2025)
   - Improved performance, especially on POSIX systems.
-  - Added testing for Python 3.13 and improved project configuration and documentation.
+  - Added testing for Python 3.13 and improved project configuration and
+    documentation.
 
 ## Key Features
 
-- **Concurrent Logging:** Multiple processes and threads safely write to the same log file.
-- **File Rotation:** Size-based and time-based rotation with optional compression.
+- **Concurrent Logging:** Multiple processes and threads safely write to the
+  same log file.
+- **File Rotation:** Size-based and time-based rotation with optional
+  compression.
 - **Cross-Platform:** Windows and POSIX support with reliable file locking.
-- **Customizable:** Control naming, permissions, line endings, and lock file placement.
-- **Performance Optimized:** Keeps files open between writes for better performance.
+- **Customizable:** Control naming, permissions, line endings, and lock file
+  placement.
+- **Performance Optimized:** Keeps files open between writes for better
+  performance.
 - **Python 3.6 through current versions:** Modern Python support.
-- **Focused Design:** Reliably handles file operations. For non-blocking behavior, see our recommended
-  [Application-Level Performance Patterns](./docs/patterns.md), including patterns for
-  [graceful degradation](./docs/patterns.md#pattern-2-graceful-degradation) to synchronous logging,
-  or using sync logging only for [higher priority](./docs/patterns.md#pattern-3-critical-vs-background-logging)
+- **Focused Design:** Reliably handles file operations. For non-blocking
+  behavior, see our recommended
+  [Application-Level Performance Patterns](./docs/patterns.md), including
+  patterns for
+  [graceful degradation](./docs/patterns.md#pattern-2-graceful-degradation) to
+  synchronous logging, or using sync logging only for
+  [higher priority](./docs/patterns.md#pattern-3-critical-vs-background-logging)
   levels.
 
 ## Primary Use Cases
@@ -80,20 +105,25 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
 CLH is primarily designed for scenarios where:
 
 - Multiple processes of a Python application need to log to a shared file.
-- These processes might be on the same machine or on different machines accessing a shared network drive.
+- These processes might be on the same machine or on different machines
+  accessing a shared network drive.
 - Log files need to be automatically rotated based on size or time.
 
-Note that this package is not primarily intended for intensive high-throughput logging scenarios,
-but rather for general-purpose logging in multi-process applications.
+Note that this package is not primarily intended for intensive high-throughput
+logging scenarios, but rather for general-purpose logging in multi-process
+applications.
 
 ### Alternatives to CLH
 
-While CLH offers a robust file-based solution, consider these alternatives for different needs:
+While CLH offers a robust file-based solution, consider these alternatives for
+different needs:
 
-- **Cloud Logging Services:** Azure Monitor, AWS CloudWatch Logs, Google Cloud Logging, Logstash, etc. These are
-  excellent for distributed systems and offer advanced analysis features.
-- **Custom Logging Server:** Implement a centralized logging server as demonstrated in
-  the [Python Logging Cookbook](https://docs.python.org/3/howto/logging-cookbook.html#sending-and-receiving-logging-events-across-a-network).
+- **Cloud Logging Services:** Azure Monitor, AWS CloudWatch Logs, Google Cloud
+  Logging, Logstash, etc. These are excellent for distributed systems and offer
+  advanced analysis features.
+- **Custom Logging Server:** Implement a centralized logging server as
+  demonstrated in the
+  [Python Logging Cookbook](https://docs.python.org/3/howto/logging-cookbook.html#sending-and-receiving-logging-events-across-a-network).
   CLH's `QueueHandler` and `QueueListener` can be adapted for this pattern.
 
 ## Installation
@@ -104,9 +134,9 @@ Install the package using `pip`:
 pip install concurrent-log-handler
 ```
 
-This will also install `portalocker`. On Windows, `portalocker` has a dependency on `pywin32`.
-Note that we now require at least portalocker 2.6.0, which among other things, explicitly
-declares its dependency on `pywin32` if needed.
+This will also install `portalocker`. On Windows, `portalocker` has a dependency
+on `pywin32`. Note that we now require at least portalocker 2.6.0, which among
+other things, explicitly declares its dependency on `pywin32` if needed.
 
 To install from source:
 
@@ -116,7 +146,8 @@ python setup.py install
 
 ## Quick Start: Basic Usage
 
-Here's a simple example using `ConcurrentRotatingFileHandler` for size-based rotation:
+Here's a simple example using `ConcurrentRotatingFileHandler` for size-based
+rotation:
 
 ```python
 import logging
@@ -140,126 +171,146 @@ logger.info("This is an exciting log message!")
 logger.info("Multiple processes can write here concurrently.")
 ```
 
-For a few more basic code examples, see [src/example.py](./src/example.py).
-For more advanced usage including non-blocking patterns, see
-the [Performance Patterns](./docs/patterns.md) guide.
+For a few more basic code examples, see [src/example.py](./src/example.py). For
+more advanced usage including non-blocking patterns, see the
+[Performance Patterns](./docs/patterns.md) guide.
 
 ## Important Usage Guidelines
 
-To ensure correct and reliable operation when using CLH in a multi-process environment, please keep the following
-in mind:
+To ensure correct and reliable operation when using CLH in a multi-process
+environment, please keep the following in mind:
 
 1. **Handler Instantiation per Process:**
-
-   - Each process _must_ create its own instance of the CLH handler (`ConcurrentRotatingFileHandler` or
-     `ConcurrentTimedRotatingFileHandler`).
-   - You **cannot** serialize a handler instance and reuse it in another process.
-     - For example, you cannot pass it from a parent to a child process via `multiprocessing` in spawn mode.
-   - This limitation is because the file lock objects and other internal states within the handler cannot be safely
-     serialized and shared across process boundaries.
-   - This requirement **does not** apply to threads within the same process; threads can share a single CLH instance.
-   - This requirement also applies to child processes created via `fork()` (e.g., Gunicorn with `--preload`, uWSGI, or
-     `multiprocessing` with the fork start method). Forked children inherit the parent's file descriptors, which
-     causes file locks to silently fail to serialize between processes. See item 3 below for the recommended pattern.
+   - Each process _must_ create its own instance of the CLH handler
+     (`ConcurrentRotatingFileHandler` or `ConcurrentTimedRotatingFileHandler`).
+   - You **cannot** serialize a handler instance and reuse it in another
+     process.
+     - For example, you cannot pass it from a parent to a child process via
+       `multiprocessing` in spawn mode.
+   - This limitation is because the file lock objects and other internal states
+     within the handler cannot be safely serialized and shared across process
+     boundaries.
+   - This requirement **does not** apply to threads within the same process;
+     threads can share a single CLH instance.
+   - This requirement also applies to child processes created via `fork()`
+     (e.g., Gunicorn with `--preload`, uWSGI, or `multiprocessing` with the fork
+     start method). Forked children inherit the parent's file descriptors, which
+     causes file locks to silently fail to serialize between processes. See item
+     3 below for the recommended pattern.
 
 2. **Multiprocessing and Spawn mode:**
 
    Just to reemphasize the point above:
+   - If you use `multiprocessing` with the default `spawn` start method (the
+     default on Windows and macOS), each child process must create its own CLH
+     handler instance.
+   - In your child process startup code, instantiate the handler as shown in the
+     example above.
+   - Usually this means you can call your standard logging setup function in the
+     child.
+   - Don't just initialize your logging code in the parent process and allow
+     child processes to inherit loggers.
 
-   - If you use `multiprocessing` with the default `spawn` start method (the default on Windows and macOS),
-     each child process must create its own CLH handler instance.
-   - In your child process startup code, instantiate the handler as shown in the example above.
-   - Usually this means you can call your standard logging setup function in the child.
-   - Don't just initialize your logging code in the parent process and allow child processes to inherit loggers.
+3. **Using `fork()` (Gunicorn, uWSGI, multiprocessing with `fork` start
+   method):**
 
-3. **Using `fork()` (Gunicorn, uWSGI, multiprocessing with `fork` start method):**
+   On Linux, depending on the version of Python, `multiprocessing` defaults to
+   the `fork` start method. Frameworks like Gunicorn with `--preload` and uWSGI
+   also fork worker processes from a parent that has already initialized
+   logging.
 
-On Linux, depending on the version of Python, `multiprocessing` defaults to the `fork` start method. Frameworks like
-Gunicorn with `--preload` and uWSGI also fork worker processes from a parent that has already initialized logging.
+   While CLH v0.9.29+ has internal safeguards for this scenario, the cleanest
+   approach is to re-initialize logging in each child process. Python 3.7+
+   provides `os.register_at_fork()` for this:
 
-While CLH v0.9.29+ has internal safeguards for this scenario, the cleanest approach is to re-initialize
-logging in each child process. Python 3.7+ provides `os.register_at_fork()` for this:
+   ```python
+   import logging
+   import logging.config
+   import os
 
-```python
-import logging
-import logging.config
-import os
+   _LOGGING_CONFIG = None  # Store your logging config dict
+   _fork_handler_registered = False
 
-_LOGGING_CONFIG = None  # Store your logging config dict
-_fork_handler_registered = False
+   def setup_logging():
+       global _LOGGING_CONFIG, _fork_handler_registered
 
-def setup_logging():
-    global _LOGGING_CONFIG, _fork_handler_registered
+       config = {
+           # Your logging.config.dictConfig()-compatible dict here
+       }
+       _LOGGING_CONFIG = config
+       logging.config.dictConfig(config)
 
-    config = {
-        # Your logging.config.dictConfig()-compatible dict here
-    }
-    _LOGGING_CONFIG = config
-    logging.config.dictConfig(config)
+       if hasattr(os, "register_at_fork") and not _fork_handler_registered:
+           _fork_handler_registered = True
+           os.register_at_fork(after_in_child=_reset_logging_in_child)
 
-    if hasattr(os, "register_at_fork") and not _fork_handler_registered:
-        _fork_handler_registered = True
-        os.register_at_fork(after_in_child=_reset_logging_in_child)
+   def _reset_logging_in_child():
+       """Called automatically in forked child processes."""
+       if not _LOGGING_CONFIG:
+           return
+       # Close inherited handlers (releases stale file descriptors and locks)
+       root = logging.getLogger()
+       for handler in root.handlers:
+           handler.close()
+       root.handlers.clear()
 
-def _reset_logging_in_child():
-    """Called automatically in forked child processes."""
-    if not _LOGGING_CONFIG:
-        return
-    # Close inherited handlers (releases stale file descriptors and locks)
-    root = logging.getLogger()
-    for handler in root.handlers:
-        handler.close()
-    root.handlers.clear()
+       # Re-initialize from scratch — child gets its own file descriptors
+       logging.config.dictConfig(_LOGGING_CONFIG)
+   ```
 
-    # Re-initialize from scratch — child gets its own file descriptors
-    logging.config.dictConfig(_LOGGING_CONFIG)
-```
+   **Why this matters:** File locks (`flock`) are tied to the _open file
+   description_, not the file descriptor number. When a child inherits the
+   parent's lock-file FD, both processes share the same lock object — meaning
+   `flock()` calls in the child don't actually block against the parent or
+   siblings. Re-creating the handler gives each process its own independent file
+   description.
 
-**Why this matters:** File locks (`flock`) are tied to the *open file description*, not the file descriptor number.
-When a child inherits the parent's lock-file FD, both processes share the same lock object — meaning `flock()`
-calls in the child don't actually block against the parent or siblings. Re-creating the handler gives each process
-its own independent file description.
+   For Gunicorn specifically, you can call your logging setup in the `post_fork`
+   hook:
 
-For Gunicorn specifically, you can call your logging setup in the `post_fork` hook:
+   ```python
+   # gunicorn.conf.py
+   def post_fork(server, worker):
+       from myapp.logging import setup_logging
+       setup_logging()
+   ```
 
-```python
-# gunicorn.conf.py
-def post_fork(server, worker):
-    from myapp.logging import setup_logging
-    setup_logging()
-```
-
-On platforms where `os.register_at_fork` is unavailable, or when using the `spawn` start method, simply call your
-logging setup function at the start of each worker process.
+   On platforms where `os.register_at_fork` is unavailable, or when using the
+   `spawn` start method, simply call your logging setup function at the start of
+   each worker process.
 
 4. **Consistent Configuration:**
+   - All processes writing to the _same log file_ **must** use identical
+     settings for the CLH handler (e.g., `maxBytes`, `backupCount`, `use_gzip`,
+     rotation interval, etc.).
+   - Do not mix CLH handlers with other logging handlers (like
+     `RotatingFileHandler` from the standard library) writing to the same file.
+     This can lead to unpredictable behavior and data loss.
 
-   - All processes writing to the _same log file_ **must** use identical settings for the CLH handler (e.g.,
-     `maxBytes`, `backupCount`, `use_gzip`, rotation interval, etc.).
-   - Do not mix CLH handlers with other logging handlers (like `RotatingFileHandler` from the standard library) writing
-     to the same file. This can lead to unpredictable behavior and data loss.
+5. **Networked/Cloud Storage:**
+   - When logging to files on network shares (NFS, SMB/CIFS) or cloud-synced
+     folders (Dropbox, Google Drive, OneDrive), ensure that the advisory file
+     locking provided by `portalocker` works correctly in your specific
+     environment.
+   - The `lock_file_directory` option allows you to place the lock file in a
+     different location (e.g., a local fast filesystem) than the log file
+     itself. This can resolve issues with locking on certain network shares.
+     However, if multiple hosts write to the same shared log, they _must_ all
+     have access to this common lock file location.
+   - Alternatively, configure your cloud sync software to ignore CLH lock files
+     (typically `.<logfilename>.lock` or files in the `lock_file_directory`).
+   - If you run into problems, try the `keep_file_open=False` option to close
+     the log file after each write. This may help with certain networked
+     filesystems but can impact performance.
 
-4. **Networked/Cloud Storage:**
-
-   - When logging to files on network shares (NFS, SMB/CIFS) or cloud-synced folders (Dropbox, Google Drive, OneDrive),
-     ensure that the advisory file locking provided by `portalocker` works correctly in your specific environment.
-   - The `lock_file_directory` option allows you to place the lock file in a different location (e.g., a local fast
-     filesystem) than the log file itself. This can resolve issues with locking on certain network shares. However, if
-     multiple hosts write to the same shared log, they _must_ all have access to this common lock file location.
-   - Alternatively, configure your cloud sync software to ignore CLH lock files (typically `.<logfilename>.lock` or
-     files in the `lock_file_directory`).
-   - If you run into problems, try the `keep_file_open=False` option to close the log file after each write. This
-     may help with certain networked filesystems but can impact performance.
-
-5. **One Handler Instance per Log File:**
-
+6. **One Handler Instance per Log File:**
    - If your application writes to multiple distinct log files, each log file
      requires its own dedicated CLH handler instance within each process.
 
-   - It is possible to have multiple CLH handlers that point to the same log file,
-     for example, if you want to log different log levels or formats to the same
-     file. However, all other rotation settings must be identical across these
-     handlers.
+   - It is possible to have multiple CLH handlers that point to the same log
+     file, for example, if you want to log different log levels or formats to
+     the same file. However, all other rotation settings must be identical
+     across these handlers.
 
 ## Handler Details
 
@@ -267,8 +318,9 @@ CLH provides two main handler classes:
 
 ### `ConcurrentRotatingFileHandler` (Size-based Rotation)
 
-This handler rotates logs when the file size exceeds `maxBytes`. Note that the actual file sizes may exceed
-`maxBytes`. How much larger depends on the size of the log message being written when the rollover occurs.
+This handler rotates logs when the file size exceeds `maxBytes`. Note that the
+actual file sizes may exceed `maxBytes`. How much larger depends on the size of
+the log message being written when the rollover occurs.
 
 ```python
 from concurrent_log_handler import ConcurrentRotatingFileHandler
@@ -284,10 +336,12 @@ handler = ConcurrentRotatingFileHandler(
 
 ### `ConcurrentTimedRotatingFileHandler` (Time-based Rotation)
 
-This handler rotates logs at specified time intervals (e.g., hourly, daily, weekly). It can _also_ rotate based on size
-if `maxBytes` is set to a non-zero value.
+This handler rotates logs at specified time intervals (e.g., hourly, daily,
+weekly). It can _also_ rotate based on size if `maxBytes` is set to a non-zero
+value.
 
-By default, it rotates hourly and does not perform size-based rotation (`maxBytes=0`).
+By default, it rotates hourly and does not perform size-based rotation
+(`maxBytes=0`).
 
 ```python
 from concurrent_log_handler import ConcurrentTimedRotatingFileHandler
@@ -303,17 +357,20 @@ handler = ConcurrentTimedRotatingFileHandler(
 )
 ```
 
-It's recommended to use keyword arguments when configuring this class due to the number of parameters and their
-ordering. For more details on time-based rotation options (`when`, `interval`, `utc`), refer to the Python standard
-library documentation for
+It's recommended to use keyword arguments when configuring this class due to the
+number of parameters and their ordering. For more details on time-based rotation
+options (`when`, `interval`, `utc`), refer to the Python standard library
+documentation for
 [`TimedRotatingFileHandler`](https://docs.python.org/3/library/logging.handlers.html#logging.handlers.TimedRotatingFileHandler).
 
 #### Customizing via Subclassing
 
-If you need to customize the handler behavior (e.g., use a custom filename suffix format), you can subclass
-`ConcurrentTimedRotatingFileHandler` and override the `finalize_handler_configuration()` hook method. This method
-is called after parent class initialization but before the first potential rollover, allowing you to safely customize
-attributes like `self.suffix` or `self.namer`.
+If you need to customize the handler behavior (e.g., use a custom filename
+suffix format), you can subclass `ConcurrentTimedRotatingFileHandler` and
+override the `finalize_handler_configuration()` hook method. This method is
+called after parent class initialization but before the first potential
+rollover, allowing you to safely customize attributes like `self.suffix` or
+`self.namer`.
 
 ```python
 from concurrent_log_handler import ConcurrentTimedRotatingFileHandler
@@ -347,21 +404,30 @@ Both handlers share several configuration options (passed as keyword arguments):
 - `backupCount`: Number of rotated log files to keep.
 - `encoding`: Log file encoding (e.g., `'utf-8'`).
 - `delay`: Defer file opening until the first log message is emitted (boolean).
-- `use_gzip`: (Default: `False`) If `True`, compresses rotated log files using gzip.
-- `owner`: Tuple `(uid, gid)` or `['username', 'groupname']` to set file ownership on Unix.
+- `use_gzip`: (Default: `False`) If `True`, compresses rotated log files using
+  gzip.
+- `owner`: Tuple `(uid, gid)` or `['username', 'groupname']` to set file
+  ownership on Unix.
 - `chmod`: Integer file mode (e.g., `0o640`) to set permissions on Unix.
-- `lock_file_directory`: Path to a directory where lock files should be stored, instead of next to the log file.
-- `newline`: (Default: platform-specific) Specify newline characters. E.g., `''` (let `terminator` handle it).
-- `terminator`: (Default: platform-specific, e.g., `\n` on POSIX, `\r\n` on Windows). Specify record terminator.
-  - To force Windows-style CRLF on Unix: `kwargs={'newline': '', 'terminator': '\r\n'}`
-  - To force Unix-style LF on Windows: `kwargs={'newline': '', 'terminator': '\n'}`
-- `namer`: A callable function to customize the naming of rotated files. See `BaseRotatingHandler.namer` in Python docs.
-- `keep_file_open`: Defaults to `True` for enhanced performance by keeping the log file (and lock file) open between
-  writes. This is recommended for most use cases.
-  - Set to `False` if you need to ensure the log file is closed after each write, for example, for compatibility with
-    certain networked filesystems.
-  - On Windows, the log file will always be closed after writes to allow for rotation, but this option still affects
-    whether the lock file is kept open.
+- `lock_file_directory`: Path to a directory where lock files should be stored,
+  instead of next to the log file.
+- `newline`: (Default: platform-specific) Specify newline characters. E.g., `''`
+  (let `terminator` handle it).
+- `terminator`: (Default: platform-specific, e.g., `\n` on POSIX, `\r\n` on
+  Windows). Specify record terminator.
+  - To force Windows-style CRLF on Unix:
+    `kwargs={'newline': '', 'terminator': '\r\n'}`
+  - To force Unix-style LF on Windows:
+    `kwargs={'newline': '', 'terminator': '\n'}`
+- `namer`: A callable function to customize the naming of rotated files. See
+  `BaseRotatingHandler.namer` in Python docs.
+- `keep_file_open`: Defaults to `True` for enhanced performance by keeping the
+  log file (and lock file) open between writes. This is recommended for most use
+  cases.
+  - Set to `False` if you need to ensure the log file is closed after each
+    write, for example, for compatibility with certain networked filesystems.
+  - On Windows, the log file will always be closed after writes to allow for
+    rotation, but this option still affects whether the lock file is kept open.
 
 ---
 
@@ -462,21 +528,25 @@ kwargs = {'when': 'H', 'interval': 1, 'backupCount': 24, 'use_gzip': True}
 format = %(asctime)s - %(name)s - %(levelname)s - %(message)s
 ```
 
-**Note:** Ensure you `import concurrent_log_handler` in your Python code _before_ calling `fileConfig()`. Python 3.7+ is
-recommended for `kwargs` support in config files.
+**Note:** Ensure you `import concurrent_log_handler` in your Python code
+_before_ calling `fileConfig()`. Python 3.7+ is recommended for `kwargs` support
+in config files.
 
 ## Migration from Deprecated Background Logging
 
-**⚠️ Removal Timeline: The `queue` module will be removed in v1.0.0 (planned for Summer 2025)**
+**⚠️ Removal Timeline: The `queue` module will be removed in v1.0.0 (planned for
+Summer 2025)**
 
-**If you're currently using `concurrent_log_handler.queue.setup_logging_queues()`:**
+**If you're currently using
+`concurrent_log_handler.queue.setup_logging_queues()`:**
 
 This utility is deprecated and will be removed in v1.0.0 due to compatibility
 issues with complex logging setups. It was provided for convenience but is not
 an integral part of CLH's functionality.
 
 **Important**: consider whether you need non-blocking logging at all. Typical
-applications can get reasonable performance with the normal (synchronous) CLH handlers.
+applications can get reasonable performance with the normal (synchronous) CLH
+handlers.
 
 ### Migration Steps:
 
@@ -506,19 +576,21 @@ The new approach:
 - ✅ Works with any logging setup
 - ✅ Provides better error visibility
 
-**For detailed migration examples, see [Performance Patterns](docs/patterns.md).**
+**For detailed migration examples, see
+[Performance Patterns](docs/patterns.md).**
 
 ## Best Practices and Limitations
 
-- **`maxBytes` is a Guideline:** The actual log file size might slightly exceed `maxBytes`
-  because the check is performed _before_ writing a new log message. The file can
-  grow by the size of that last message. This behavior prioritizes preserving log
-  records. Standard `RotatingFileHandler` is stricter but may truncate.
+- **`maxBytes` is a Guideline:** The actual log file size might slightly exceed
+  `maxBytes` because the check is performed _before_ writing a new log message.
+  The file can grow by the size of that last message. This behavior prioritizes
+  preserving log records. Standard `RotatingFileHandler` is stricter but may
+  truncate.
 
-- **`backupCount` Performance:** Avoid excessively high `backupCount` values (e.g., \> 20-50).
-  Renaming many files during rotation can be slow, and this occurs while the log
-  file is locked. Consider increasing `maxBytes` instead if you need to retain
-  more history in fewer files.
+- **`backupCount` Performance:** Avoid excessively high `backupCount` values
+  (e.g., \> 20-50). Renaming many files during rotation can be slow, and this
+  occurs while the log file is locked. Consider increasing `maxBytes` instead if
+  you need to retain more history in fewer files.
 
 - **Gzip Compression:** Enabling `use_gzip` adds CPU overhead.
 
@@ -574,7 +646,8 @@ If you plan to modify or contribute to CLH:
    hatch build --clean
    ```
 
-   The distributable files will be in the `dist/` folder. To upload (maintainers only):
+   The distributable files will be in the `dist/` folder. To upload (maintainers
+   only):
 
    ```bash
    pip install twine
@@ -583,16 +656,17 @@ If you plan to modify or contribute to CLH:
 
 ## Historical Note
 
-This package is a fork of Lowell Alleman's `ConcurrentLogHandler` 0.9.1. The fork was created to address a
-hanging/deadlocking
-issue ([Launchpad Bug \#1265150](https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150)) and has since
-incorporated numerous other fixes, features, and modernizations.
+This package is a fork of Lowell Alleman's `ConcurrentLogHandler` 0.9.1. The
+fork was created to address a hanging/deadlocking issue
+([Launchpad Bug \#1265150](https://bugs.launchpad.net/python-concurrent-log-handler/+bug/1265150))
+and has since incorporated numerous other fixes, features, and modernizations.
 
 ## Project Links
 
 - **GitHub Repository:**
   [https://github.com/Preston-Landers/concurrent-log-handler](https://github.com/Preston-Landers/concurrent-log-handler)
-- **PyPI Package:** [https://pypi.org/project/concurrent-log-handler/](https://pypi.org/project/concurrent-log-handler/)
+- **PyPI Package:**
+  [https://pypi.org/project/concurrent-log-handler/](https://pypi.org/project/concurrent-log-handler/)
 
 ## Changelog
 
@@ -600,8 +674,10 @@ See [CHANGELOG.md](CHANGELOG.md) for a detailed history of changes.
 
 ## Contributors
 
-The original version was by Lowell Alleman. Subsequent contributions are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+The original version was by Lowell Alleman. Subsequent contributions are listed
+in [CONTRIBUTORS.md](CONTRIBUTORS.md).
 
 ## License
 
-This project is licensed under the terms of the [LICENSE file](./LICENSE) (Apache 2.0 terms).
+This project is licensed under the terms of the [LICENSE file](./LICENSE)
+(Apache 2.0 terms).
