@@ -48,12 +48,38 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install Hatch
+      # Recent versions of hatch + virtualenv break interpreter discovery for
+      # older Pythons with: "module 'virtualenv.discovery.builtin' has no
+      # attribute 'propose_interpreters'". Versions in LEGACY_VERSIONS below
+      # bypass hatch entirely and run pytest directly. Bump as upstream drift
+      # claims more versions over time.
+      - name: Install Hatch (modern Python)
+        if: ${{ !contains(fromJSON('["3.7", "3.8", "3.9"]'), matrix.python-version) }}
         run: |
           pip3 install --upgrade hatch
-      - name: Run tests
+      - name: Run tests via Hatch (modern Python)
+        if: ${{ !contains(fromJSON('["3.7", "3.8", "3.9"]'), matrix.python-version) }}
         run: |
           hatch run test.py${{ matrix.python-version }}:cov
+      # Legacy / EOL Pythons: install test deps directly with pip and run
+      # pytest directly. We still want these in the matrix as a canary for
+      # whether the library itself works on them; lint/typing checks only
+      # run on the dedicated lint job. Note: dev extras include
+      # black>=26.1.0 (Python 3.9+ only), so we install only the
+      # test-relevant deps explicitly.
+      - name: Install test deps directly (legacy Python)
+        if: ${{ contains(fromJSON('["3.7", "3.8", "3.9"]'), matrix.python-version) }}
+        run: |
+          pip3 install -e .
+          pip3 install pytest coverage pytest-mock pytest-sugar pytest-cov pytest-repeat
+      - name: Run tests directly (legacy Python)
+        if: ${{ contains(fromJSON('["3.7", "3.8", "3.9"]'), matrix.python-version) }}
+        run: |
+          python3 --version
+          pip list
+          coverage erase
+          coverage run -m pytest tests
+          coverage report
   build:
     runs-on: ubuntu-latest
     needs:
