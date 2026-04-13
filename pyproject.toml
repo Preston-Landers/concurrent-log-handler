@@ -106,7 +106,7 @@ python = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14"]
 detached = true
 dependencies = [
   "black>=26.1.0",
-  "mypy>=1.6.0",
+  "mypy>=1.10.0,<2",
   "ruff>=0.15.2",
   "portalocker",
 ]
@@ -219,7 +219,7 @@ omit = [
 ]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 platform = "linux"
 disallow_any_unimported = true
 disallow_any_explicit = true

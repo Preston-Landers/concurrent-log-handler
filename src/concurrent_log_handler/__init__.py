@@ -1094,7 +1094,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
                             f"Exception during self.stream close in __internal_close: {e_close}",
                             stack=False,
                         )
-            self.stream = None  # type: ignore[assignment]
+            self.stream = None
 
     def _console_log(self, msg: str, stack: bool = False) -> None:
         self.clh._console_log(msg, stack=stack)
@@ -1329,7 +1329,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         # Make sure we close both our own stream and the ConcurrentHandler's stream
         if self.stream:
             self.stream.close()
-            self.stream = None  # type: ignore[assignment]
+            self.stream = None
 
         # Some of this code is duplicated in parent class, could be refactored out
         if self.clh.stream:
