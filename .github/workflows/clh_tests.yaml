@@ -5,15 +5,18 @@ name: Concurrent Log Handler (CLH) tests
 on:
   push:
   pull_request:
+  # Allow manual triggering from the Actions UI ("Run workflow" button).
+  # Useful for re-running CI against a branch without pushing an empty commit.
+  workflow_dispatch:
 
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - name: Set up Python 3.14
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: "3.14"
           cache: "pip"
@@ -42,26 +45,56 @@ jobs:
           - python-version: "3.14"
             os: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install Hatch
+      # Recent versions of hatch + virtualenv break interpreter discovery for
+      # older Pythons with: "module 'virtualenv.discovery.builtin' has no
+      # attribute 'propose_interpreters'". Versions in LEGACY_VERSIONS below
+      # bypass hatch entirely and run pytest directly. Bump as upstream drift
+      # claims more versions over time.
+      - name: Install Hatch (modern Python)
+        if: ${{ !contains(fromJSON('["3.7", "3.8", "3.9"]'), matrix.python-version) }}
         run: |
           pip3 install --upgrade hatch
-      - name: Run tests
+      - name: Run tests via Hatch (modern Python)
+        if: ${{ !contains(fromJSON('["3.7", "3.8", "3.9"]'), matrix.python-version) }}
         run: |
           hatch run test.py${{ matrix.python-version }}:cov
+      # Legacy / EOL Pythons: install test deps directly with pip and run
+      # pytest directly. We still want these in the matrix as a canary for
+      # whether the library itself works on them; lint/typing checks only
+      # run on the dedicated lint job. Note: dev extras include
+      # black>=26.1.0 (Python 3.9+ only), so we install only the
+      # test-relevant deps explicitly.
+      #
+      # Coverage is intentionally NOT collected on this path. `coverage run
+      # -m pytest` together with pytest-cov can produce an empty `.coverage`
+      # file in some plugin orderings, causing `coverage report` to exit 1
+      # with "No data to report.". Coverage is fully exercised on the
+      # modern (hatch) matrix entries, so dropping it here loses no signal.
+      - name: Install test deps directly (legacy Python)
+        if: ${{ contains(fromJSON('["3.7", "3.8", "3.9"]'), matrix.python-version) }}
+        run: |
+          pip3 install -e .
+          pip3 install pytest pytest-mock pytest-sugar pytest-repeat
+      - name: Run tests directly (legacy Python)
+        if: ${{ contains(fromJSON('["3.7", "3.8", "3.9"]'), matrix.python-version) }}
+        run: |
+          python3 --version
+          pip list
+          pytest tests
   build:
     runs-on: ubuntu-latest
     needs:
       - lint
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python 3.14
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v6
         with:
           python-version: "3.14"
           cache: pip
@@ -71,7 +104,7 @@ jobs:
       - name: Build
         run: |
           hatch build --clean
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: artifacts
           path: dist/*

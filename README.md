@@ -31,6 +31,16 @@ instead.
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
 
+- **Version 0.9.30**: (April 2026)
+  - Fix permission race window between file create and chmod when the
+    `chmod` and/or `owner` kwargs are configured. A different-user process
+    opening the lock file, log file, or rotated `.gz` file during the
+    create/chmod window could get `PermissionError`. Files are now
+    pre-created atomically with the correct permissions. Issue
+    [#87](https://github.com/Preston-Landers/concurrent-log-handler/issues/87)
+  - Fix `do_gzip()` silently ignoring the configured `umask` on rotated
+    `.gz` files (the call ran outside `_alter_umask()`). The handler's
+    `umask` setting is now honored on the rotation path.
 - **Version 0.9.29**: (February 2026)
   - Fix race conditions when a handler created before `fork()` is used by
     multiple child processes. Child processes that inherit a handler now

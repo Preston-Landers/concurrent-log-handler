@@ -59,6 +59,7 @@ import errno
 import logging
 import os
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -341,6 +342,11 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         #     stack=False,
         # )
 
+        # Pre-create the lockfile with correct perms so cross-user openers
+        # never see it with umask-derived (too restrictive) perms. No-op
+        # when no chmod/owner is configured or the file already exists.
+        self._atomic_create_with_perms(lock_file)
+
         with self._alter_umask():
             self.stream_lock = self.atomic_open(lock_file)
 
@@ -389,6 +395,11 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         # During shutdown, even our stored references might be None
         if _open is None:
             raise RuntimeError("Cannot open file during Python shutdown")
+
+        # Pre-create the log file with correct perms so cross-user openers
+        # never see it with umask-derived (too restrictive) perms. No-op
+        # when no chmod/owner is configured or the file already exists.
+        self._atomic_create_with_perms(self.baseFilename)
 
         with self._alter_umask():
             stream = _open(
@@ -726,6 +737,14 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
             if self.use_gzip:
                 self.do_gzip(temp_file_name)
+                # Apply chown/chmod to the temp .gz BEFORE it is renamed
+                # into ".1.gz". Once the public name appears, any chmod
+                # is racy (other-user processes can open the file in the
+                # window before chmod runs). Renaming preserves perms,
+                # so doing this on the temp name eliminates the window.
+                temp_gz = temp_file_name + ".gz"
+                if os.path.exists(temp_gz):
+                    self._do_chown_and_chmod(temp_gz)
         except OSError as e:
             self._console_log(f"rename failed.  File in use? e={e}", stack=True)
             return
@@ -853,9 +872,13 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         out_filename = input_filename + ".gz"
         success = False
         try:
-            with _open(input_filename, "rb") as input_fh, gzip.open(
-                out_filename, "wb"
-            ) as gzip_fh:
+            # Honor the configured umask while creating the .gz file. Prior
+            # to this fix, do_gzip() silently ignored the umask parameter
+            # because gzip.open() ran outside any _alter_umask() context;
+            # the .gz file picked up the process default umask instead.
+            with self._alter_umask(), _open(
+                input_filename, "rb"
+            ) as input_fh, gzip.open(out_filename, "wb") as gzip_fh:
                 while True:
                     data = input_fh.read(self.gzip_buffer)
                     if not data:
@@ -896,6 +919,70 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         if HAS_CHMOD and self.chmod is not None:
             os.chmod(filename, self.chmod)
+
+    def _atomic_create_with_perms(self, target_path: str) -> bool:
+        """Pre-create *target_path* atomically with the configured ownership
+        and permissions, so the file never appears in the filesystem with
+        intermediate (umask-derived) perms.
+
+        Without this, _open_lockfile() / do_open() / the gzip rotation path
+        all create files using the configured umask and call
+        _do_chown_and_chmod() afterward to apply the target perms. Between
+        creation and chmod, a different-user process that opens the file
+        gets PermissionError because the umask-derived perms are too
+        restrictive. See tests/test_perm_race.py.
+
+        Strategy: create a tempfile in the same directory (so it lands on
+        the same filesystem), apply chown/chmod to it, then atomically
+        link it into place under the target name. POSIX guarantees
+        os.link() is atomic and refuses to overwrite. Other processes
+        therefore only ever see the file with correct perms or not at all.
+
+        The tempfile path is then unlinked: on POSIX the inode survives
+        because the target name still references it; on Windows os.rename()
+        is used instead and the tempfile is consumed by the rename.
+
+        Returns True if this call created the target file, False otherwise
+        (no perms configured, file already exists, or another process
+        won the race). Callers should always proceed with their normal
+        open afterward; this helper only ensures the file has the right
+        perms by the time anyone else can see it.
+        """
+        # Skip the work entirely when no perm config applies. This keeps
+        # the syscall cost at zero for the vast majority of users who
+        # don't set chmod or owner.
+        if self.chmod is None and self._set_uid is None:
+            return False
+        # Skip if the file already exists. Once a file is on disk with
+        # the right perms (from a prior process or a prior call), there's
+        # nothing to fix and the link() below would just FileExistsError.
+        if os.path.exists(target_path):
+            return False
+
+        dir_name = os.path.dirname(target_path) or "."
+        fd, tmp_path = tempfile.mkstemp(dir=dir_name)
+        try:
+            os.close(fd)
+            self._do_chown_and_chmod(tmp_path)
+            try:
+                if os.name == "nt":
+                    # Hard links on Windows have surprising semantics on
+                    # some filesystems; rename is the portable choice.
+                    # os.rename() refuses to overwrite on Windows. The
+                    # tmp file is consumed by the rename, so the unlink
+                    # in the finally block will (harmlessly) raise
+                    # FileNotFoundError, which we suppress below.
+                    os.rename(tmp_path, target_path)
+                else:
+                    os.link(tmp_path, target_path)
+            except FileExistsError:
+                # Another process won the create race. That's fine; we
+                # leave their file alone and let the caller open it.
+                return False
+        finally:
+            with suppress(FileNotFoundError):
+                os.unlink(tmp_path)
+        return True
 
 
 # noinspection PyProtectedMember
@@ -1007,7 +1094,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
                             f"Exception during self.stream close in __internal_close: {e_close}",
                             stack=False,
                         )
-            self.stream = None  # type: ignore[assignment]
+            self.stream = None
 
     def _console_log(self, msg: str, stack: bool = False) -> None:
         self.clh._console_log(msg, stack=stack)
@@ -1242,7 +1329,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         # Make sure we close both our own stream and the ConcurrentHandler's stream
         if self.stream:
             self.stream.close()
-            self.stream = None  # type: ignore[assignment]
+            self.stream = None
 
         # Some of this code is duplicated in parent class, could be refactored out
         if self.clh.stream:

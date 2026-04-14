@@ -1,5 +1,26 @@
 # Change Log
 
+- 0.9.30
+
+  - Fix permission race window between file create and chmod, when the `chmod` and/or `owner` kwargs are configured.
+    [Issue #87](https://github.com/Preston-Landers/concurrent-log-handler/issues/87)
+
+    The handler created files using the configured `umask` and applied `_do_chown_and_chmod()` afterward. In the
+    window between create and chmod, the file was visible in the filesystem with umask-derived (potentially
+    too-restrictive) permissions. A different-user process that opened the file during this window got
+    `PermissionError`, breaking the cross-user log sharing scenario the `chmod`/`owner` kwargs exist to support.
+
+    Affected three call sites: the per-handler lock file, the main log file, and the `.1.gz` file produced during
+    gzip rotation. All three now pre-create the target file atomically with the correct permissions (via tempfile
+    + `os.link()` on POSIX, `os.rename()` on Windows) so other processes never see the public filename with
+    intermediate perms. Handlers that don't configure `chmod`/`owner` are unaffected and pay no extra syscalls.
+
+  - Fix `do_gzip()` silently ignoring the configured `umask` parameter on rotated `.gz` files. The `gzip.open()`
+    call previously ran outside the `_alter_umask()` context, so rotated archives picked up the process default
+    umask instead of the handler's. Discovered while investigating Issue #87.
+
+  Thanks to @jbfryar for a thorough bug report on this issue.
+
 - 0.9.29
 
   - Fix race conditions when a handler created before `fork()` is used by multiple child processes. Child processes
