@@ -27,7 +27,8 @@
 
   - `ConcurrentTimedRotatingFileHandler` no longer creates the log file in its constructor. The standard library
     created it there with the process umask, so the handler's `umask`, `chmod`, and `owner` settings did not apply
-    until the first write. The file is now created on first write, as in `ConcurrentRotatingFileHandler`, and the
+    until the first write. Until then, a process running as another user could fail to create its handler, with
+    `PermissionError`. The file is now created on first write, as in `ConcurrentRotatingFileHandler`, and the
     `delay` argument is ignored.
 
   - `ConcurrentTimedRotatingFileHandler` now applies `chmod` and `owner` to rotated `.gz` files. Before, they kept

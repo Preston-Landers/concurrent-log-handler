@@ -44,7 +44,8 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
     owns while `chmod` or `owner` is configured.
   - `ConcurrentTimedRotatingFileHandler`: apply `umask`, `chmod`, and
     `owner` to the main log file from the start, and apply `chmod` and
-    `owner` to rotated `.gz` files.
+    `owner` to rotated `.gz` files. Before, a process running as another
+    user could fail to create its handler, with `PermissionError`.
   - Fix `do_gzip()` silently ignoring the configured `umask` on rotated
     `.gz` files (the call ran outside `_alter_umask()`). The handler's
     `umask` setting is now honored on the rotation path.
