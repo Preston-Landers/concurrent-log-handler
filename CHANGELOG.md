@@ -39,9 +39,11 @@
     umask instead of the handler's. Discovered while investigating Issue #87.
 
   - Fix a deadlock introduced in 0.9.29. If one thread was writing a log record when another thread called
-    `fork()`, the child process hung on its first log call. The child now resets the handler's thread lock. This
-    fix applies to Python 3.9 and later; on 3.7 and 3.8, logging holds handler locks across `fork()`, so the
-    deadlock does not occur.
+    `fork()`, the child process hung on its first log call. The child now resets the handler's thread lock. In the
+    same situation, a child that closed the handler before it logged (for example, through `logging.shutdown()`
+    at exit) released the parent's file lock while the parent was still writing. The child now also clears the
+    inherited lock state. Both fixes apply to Python 3.9 and later; on 3.7 and 3.8, logging holds handler locks
+    across `fork()`, so these problems do not occur.
 
   - Fix loss of a rotated log file after a failed gzip (for example, disk full). The failure leaves the rotated
     file uncompressed. On the next rotation, `ConcurrentRotatingFileHandler` deleted that file (even when

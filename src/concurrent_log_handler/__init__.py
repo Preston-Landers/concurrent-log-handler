@@ -668,10 +668,16 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         gets _thread_lock in the held state, with no thread to release it, and
         its first log call blocks forever. (Before 3.9, logging holds every
         handler lock across fork(), so emit() cannot be in progress then.)
-        The lock file is reopened later, by the fork check in _do_lock().
+
+        The child also inherits is_locked=True, and the lock file FD shares
+        its open file description with the parent. If the child then called
+        close() before it logged, the unlock() in close() would release the
+        parent's lock while the parent was still writing. Clear the flag; the
+        lock file is reopened later, by the fork check in _do_lock().
         """
         super()._at_fork_reinit()  # type: ignore[misc]  # private; not in typeshed
         self._thread_lock = threading.RLock()
+        self.is_locked = False
 
     def close(self) -> None:
         """Close log stream and stream_lock."""
