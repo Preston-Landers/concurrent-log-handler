@@ -14,9 +14,9 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: "pip"
@@ -34,20 +34,30 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15" ]
+        python-version: [ "3.10", "3.11", "3.12", "3.13", "3.14", "3.15" ]
         os: [ ubuntu-latest ]
         include:
-          # Unfortunately these older versions are no longer supported by GH
-          #          - python-version: "3.6"
-          #            os: ubuntu-22.04
+          # setup-python only has prebuilt binaries for the Ubuntu releases
+          # that were current while a Python version was supported, so EOL
+          # Pythons must run on an older image. `ubuntu-latest` moves to
+          # Ubuntu 26.04 in October/November 2026, which has no 3.8 or 3.9
+          # builds. Python 3.6 has no builds on any current image.
+          #
+          # ubuntu-22.04 is deprecated and retires on April 17, 2027, with
+          # brownouts in March and April 2027. Python 3.7 has no 24.04
+          # build, so it must then be dropped or run in a container image.
           - python-version: "3.7"
             os: ubuntu-22.04
+          - python-version: "3.8"
+            os: ubuntu-24.04
+          - python-version: "3.9"
+            os: ubuntu-24.04
           - python-version: "3.14"
             os: windows-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -93,9 +103,9 @@ jobs:
     needs:
       - lint
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Set up Python 3.14
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip
@@ -105,7 +115,7 @@ jobs:
       - name: Build
         run: |
           hatch build --clean
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: artifacts
           path: dist/*
