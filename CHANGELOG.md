@@ -40,7 +40,15 @@
     fix applies to Python 3.9 and later; on 3.7 and 3.8, logging holds handler locks across `fork()`, so the
     deadlock does not occur.
 
-  Thanks to @jbfryar for a thorough bug report on this issue.
+  - Fix loss of a rotated log file after a failed gzip (for example, disk full). The failure leaves the rotated
+    file uncompressed. On the next rotation, `ConcurrentRotatingFileHandler` deleted that file (even when
+    `backupCount` allowed more), and `ConcurrentTimedRotatingFileHandler` could overwrite it with a later file from
+    the same period. Both handlers now keep it.
+
+  - Remove a duplicate stale-file check from each write. On a local disk this cuts the time per write by about
+    13% when `maxBytes` is set, for both handlers.
+
+  Thanks to @jbfryar for a thorough bug report on Issue #87.
 
 - 0.9.29
 

@@ -122,7 +122,7 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
     exceed the given size.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         filename: LogFilenameType,
         mode: str = "a",
@@ -785,7 +785,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         for i in range(1, self.backupCount):
             sfn = self.rotation_filename(f"{self.baseFilename}.{i}")
             dfn = self.rotation_filename(f"{self.baseFilename}.{i + 1}")
-            if os.path.exists(sfn + gzip_ext):
+            # Also match an uncompressed file. A failed gzip (for example,
+            # disk full) leaves ".N" instead of ".N.gz". If the chain stopped
+            # there, do_rename() would delete that file below.
+            if os.path.exists(sfn + gzip_ext) or os.path.exists(sfn):
                 do_renames.append((sfn, dfn))
             else:
                 # Break looking for more rollover files as soon as we can't find one
@@ -816,9 +819,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         if self.maxBytes <= 0:  # are we rolling over?
             return False
 
-        # Check/reopen stale handle first if needed (POSIX + keep open)
-        if self._actual_keep_log_stream_open and self.is_posix:
-            self._check_stream()
+        # No stale-handle check here: emit() (in both handlers) calls
+        # _check_stream() just before this, while holding the same lock.
 
         # Now attempt to use the stream if it's available and we *intend* to keep it open
         if self._actual_keep_log_stream_open and self.stream and not self.stream.closed:
@@ -1046,9 +1048,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
 # noinspection PyProtectedMember
 class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
-    # Define a reasonable minimum timestamp, e.g., Jan 1, 2000 00:00:00 UTC
-    MIN_VALID_TIMESTAMP = 946684800
-
     """A time-based rotating log handler that supports concurrent access across
     multiple processes or hosts (using logs on a shared network drive).
 
@@ -1059,10 +1058,14 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
     of the time-based rotation. If multiple rotations had to be done within the timeframe of
     the time-based rollover name, then a number like ".1" will be appended to the end of the name.
 
-    Note that `errors` is ignored unless using Python 3.9 or later.
+    Note that `errors` is ignored unless using Python 3.9 or later. `delay` is
+    ignored; the log file is always created when the first record is written.
     """
 
-    def __init__(  # type: ignore[no-untyped-def] # noqa: PLR0913
+    # Define a reasonable minimum timestamp, e.g., Jan 1, 2000 00:00:00 UTC
+    MIN_VALID_TIMESTAMP = 946684800
+
+    def __init__(  # type: ignore[no-untyped-def] # noqa: PLR0913, PLR0917
         self,
         filename: LogFilenameType,
         when: str = "h",
@@ -1463,12 +1466,17 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
 
         gzip_ext = ".gz" if self.clh.use_gzip else ""
 
-        if os.path.exists(dfn + gzip_ext):
+        def name_taken(name: str) -> bool:
+            # Check both forms. A failed gzip (for example, disk full) leaves
+            # the uncompressed file, and rename() would replace it.
+            return os.path.exists(name) or os.path.exists(name + gzip_ext)
+
+        if name_taken(dfn):
             base_dfn_for_counter = dfn
             counter = 1
             while True:
                 numbered_dfn_candidate = f"{base_dfn_for_counter}.{counter}"
-                if not os.path.exists(numbered_dfn_candidate + gzip_ext):
+                if not name_taken(numbered_dfn_candidate):
                     dfn = numbered_dfn_candidate
                     break
                 counter += 1

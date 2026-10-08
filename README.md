@@ -49,6 +49,10 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
     `umask` setting is now honored on the rotation path.
   - Fix a deadlock (new in 0.9.29) in a child process forked while another
     thread was writing a log record.
+  - Fix loss of a rotated log file on the rotation after a failed gzip (for
+    example, disk full).
+  - Remove a duplicate stale-file check from each write (about 13% less time
+    per write when `maxBytes` is set).
 - **Version 0.9.29**: (February 2026)
   - Fix race conditions when a handler created before `fork()` is used by
     multiple child processes. Child processes that inherit a handler now
