@@ -2,6 +2,8 @@
 
 - 0.9.30
 
+  - Mark Python 3.15 as supported.
+
   - Fix permission race window between file create and chmod, when the `chmod` and/or `owner` kwargs are configured.
     [Issue #87](https://github.com/Preston-Landers/concurrent-log-handler/issues/87)
 

@@ -31,7 +31,8 @@ instead.
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
 
-- **Version 0.9.30**: (April 2026)
+- **Version 0.9.30**: (October 2026)
+  - Mark Python 3.15 as supported.
   - Fix permission race window between file create and chmod when the
     `chmod` and/or `owner` kwargs are configured. A different-user process
     opening the lock file, log file, or rotated `.gz` file during the

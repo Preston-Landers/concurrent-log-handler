@@ -34,7 +34,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14" ]
+        python-version: [ "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.15" ]
         os: [ ubuntu-latest ]
         include:
           # Unfortunately these older versions are no longer supported by GH
@@ -51,6 +51,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
+          allow-prereleases: true
       # Recent versions of hatch + virtualenv break interpreter discovery for
       # older Pythons with: "module 'virtualenv.discovery.builtin' has no
       # attribute 'propose_interpreters'". Versions in LEGACY_VERSIONS below
@@ -110,4 +111,3 @@ jobs:
           path: dist/*
           if-no-files-found: error
           retention-days: 7
-
