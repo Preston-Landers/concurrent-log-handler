@@ -36,11 +36,19 @@ See [CHANGELOG.md](CHANGELOG.md) for details.
     `chmod` and/or `owner` kwargs are configured. A different-user process
     opening the lock file, log file, or rotated `.gz` file during the
     create/chmod window could get `PermissionError`. Files are now
-    pre-created atomically with the correct permissions. Issue
+    pre-created atomically with the correct permissions, with a fallback for
+    filesystems without hard links. Issue
     [#87](https://github.com/Preston-Landers/concurrent-log-handler/issues/87)
+  - Fix lost records when a process writes to a log file that another user
+    owns while `chmod` or `owner` is configured.
+  - `ConcurrentTimedRotatingFileHandler`: apply `umask`, `chmod`, and
+    `owner` to the main log file from the start, and apply `chmod` and
+    `owner` to rotated `.gz` files.
   - Fix `do_gzip()` silently ignoring the configured `umask` on rotated
     `.gz` files (the call ran outside `_alter_umask()`). The handler's
     `umask` setting is now honored on the rotation path.
+  - Fix a deadlock (new in 0.9.29) in a child process forked while another
+    thread was writing a log record.
 - **Version 0.9.29**: (February 2026)
   - Fix race conditions when a handler created before `fork()` is used by
     multiple child processes. Child processes that inherit a handler now
@@ -413,7 +421,8 @@ Both handlers share several configuration options (passed as keyword arguments):
 - `mode`: File open mode (default: `'a'` for append).
 - `backupCount`: Number of rotated log files to keep.
 - `encoding`: Log file encoding (e.g., `'utf-8'`).
-- `delay`: Defer file opening until the first log message is emitted (boolean).
+- `delay`: Ignored. Both handlers always open the log file when the first
+  record is written.
 - `use_gzip`: (Default: `False`) If `True`, compresses rotated log files using
   gzip.
 - `owner`: Tuple `(uid, gid)` or `['username', 'groupname']` to set file

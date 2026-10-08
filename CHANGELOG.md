@@ -10,14 +10,35 @@
     too-restrictive) permissions. A different-user process that opened the file during this window got
     `PermissionError`, breaking the cross-user log sharing scenario the `chmod`/`owner` kwargs exist to support.
 
-    Affected three call sites: the per-handler lock file, the main log file, and the `.1.gz` file produced during
-    gzip rotation. All three now pre-create the target file atomically with the correct permissions (via tempfile
-    + `os.link()` on POSIX, `os.rename()` on Windows) so other processes never see the public filename with
-    intermediate perms. Handlers that don't configure `chmod`/`owner` are unaffected and pay no extra syscalls.
+    The lock file, the main log file, and rotated `.gz` files (from both handlers) are now pre-created atomically
+    with the correct permissions: a hidden temp file gets the owner and mode, then `os.link()` (POSIX) or
+    `os.rename()` (Windows) puts it in place. Other processes never see the public filename with intermediate
+    perms. On filesystems without hard links (FAT/exFAT, many SMB/CIFS and FUSE mounts), the handler falls back to
+    the previous create-then-chmod behavior. Handlers that don't configure `chmod`/`owner` are unaffected and pay
+    no extra syscalls.
+
+  - Fix lost records when a process opens a lock file or log file that another user owns, with `chmod` or `owner`
+    configured. Only the owner of a file (or root) can chmod it, so every write from that process failed with
+    `PermissionError`, even though the file was writable. The handler now skips chmod/chown when the file already
+    has the configured mode and owner, and treats a failure as non-fatal (reported only in `debug` mode). Related
+    to Issue #87.
+
+  - `ConcurrentTimedRotatingFileHandler` no longer creates the log file in its constructor. The standard library
+    created it there with the process umask, so the handler's `umask`, `chmod`, and `owner` settings did not apply
+    until the first write. The file is now created on first write, as in `ConcurrentRotatingFileHandler`, and the
+    `delay` argument is ignored.
+
+  - `ConcurrentTimedRotatingFileHandler` now applies `chmod` and `owner` to rotated `.gz` files. Before, they kept
+    umask-derived permissions.
 
   - Fix `do_gzip()` silently ignoring the configured `umask` parameter on rotated `.gz` files. The `gzip.open()`
     call previously ran outside the `_alter_umask()` context, so rotated archives picked up the process default
     umask instead of the handler's. Discovered while investigating Issue #87.
+
+  - Fix a deadlock introduced in 0.9.29. If one thread was writing a log record when another thread called
+    `fork()`, the child process hung on its first log call. The child now resets the handler's thread lock. This
+    fix applies to Python 3.9 and later; on 3.7 and 3.8, logging holds handler locks across `fork()`, so the
+    deadlock does not occur.
 
   Thanks to @jbfryar for a thorough bug report on this issue.
 

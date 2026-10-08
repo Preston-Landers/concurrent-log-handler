@@ -58,8 +58,8 @@ import datetime
 import errno
 import logging
 import os
+import stat
 import sys
-import tempfile
 import threading
 import time
 import traceback
@@ -660,6 +660,19 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         else:
             self._console_log("No self.stream_lock to unlock", stack=True)
 
+    def _at_fork_reinit(self) -> None:
+        """Reset locks in a forked child. Python 3.9+ logging calls this.
+
+        logging resets self.lock in the child, but not our _thread_lock. If
+        another thread was inside emit() when the process forked, the child
+        gets _thread_lock in the held state, with no thread to release it, and
+        its first log call blocks forever. (Before 3.9, logging holds every
+        handler lock across fork(), so emit() cannot be in progress then.)
+        The lock file is reopened later, by the fork check in _do_lock().
+        """
+        super()._at_fork_reinit()  # type: ignore[misc]  # private; not in typeshed
+        self._thread_lock = threading.RLock()
+
     def close(self) -> None:
         """Close log stream and stream_lock."""
         # self._console_log("In close()", stack=True)
@@ -736,15 +749,10 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             os.rename(self.baseFilename, temp_file_name)
 
             if self.use_gzip:
+                # do_gzip() gives the temp .gz the configured owner and mode
+                # before it is renamed into ".1.gz" below. Renaming keeps
+                # them, so the public name never has the wrong perms.
                 self.do_gzip(temp_file_name)
-                # Apply chown/chmod to the temp .gz BEFORE it is renamed
-                # into ".1.gz". Once the public name appears, any chmod
-                # is racy (other-user processes can open the file in the
-                # window before chmod runs). Renaming preserves perms,
-                # so doing this on the temp name eliminates the window.
-                temp_gz = temp_file_name + ".gz"
-                if os.path.exists(temp_gz):
-                    self._do_chown_and_chmod(temp_gz)
         except OSError as e:
             self._console_log(f"rename failed.  File in use? e={e}", stack=True)
             return
@@ -789,10 +797,6 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
 
         dfn = self.rotation_filename(self.baseFilename + ".1")
         do_rename(temp_file_name, dfn)
-
-        if self.use_gzip:
-            log_file_name = self.baseFilename + ".1.gz"
-            self._do_chown_and_chmod(log_file_name)
 
         self.num_rollovers += 1
         self._console_log("Rotation completed (on size)")
@@ -872,10 +876,13 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         out_filename = input_filename + ".gz"
         success = False
         try:
-            # Honor the configured umask while creating the .gz file. Prior
-            # to this fix, do_gzip() silently ignored the umask parameter
-            # because gzip.open() ran outside any _alter_umask() context;
-            # the .gz file picked up the process default umask instead.
+            # Pre-create the .gz with the configured owner and mode, so it
+            # never appears with umask-derived perms. The timed handler
+            # gzips straight to the public name. gzip.open(..., "wb")
+            # truncates the existing file and keeps its owner and mode.
+            self._atomic_create_with_perms(out_filename)
+            # Honor the configured umask if gzip.open() creates the file
+            # (no chmod/owner configured, or the pre-create fell back).
             with self._alter_umask(), _open(
                 input_filename, "rb"
             ) as input_fh, gzip.open(out_filename, "wb") as gzip_fh:
@@ -884,6 +891,8 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                     if not data:
                         break
                     gzip_fh.write(data)
+            # No-op if the pre-create worked; applies the perms if it fell back.
+            self._do_chown_and_chmod(out_filename)
             success = True  # Mark success only if all writes complete
         except Exception as e:
             self._console_log(
@@ -912,41 +921,74 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
             # else: original input_filename is preserved if gzip failed
 
     def _do_chown_and_chmod(self, filename: str) -> None:
-        if HAS_CHOWN and self._set_uid is not None and self._set_gid is not None:
-            os.chown(  # pyright: ignore[reportAttributeAccessIssue]
-                filename, self._set_uid, self._set_gid
-            )
+        """Apply the configured owner and mode to *filename* where they differ.
 
-        if HAS_CHMOD and self.chmod is not None:
-            os.chmod(filename, self.chmod)
+        This is best-effort. Only the owner of a file (or root) can chmod it,
+        and only root can chown it. When several users share a log, a process
+        often opens a file that another user created. That file is writable,
+        so an error here must not drop the record (Issue #87). Errors are only
+        reported in debug mode, like other non-fatal problems in this class.
+        """
+        if self.chmod is None and self._set_uid is None:
+            return
+        try:
+            st = os.stat(filename)
+        except OSError as e:
+            self._console_log(f"Cannot stat {filename} to set owner/mode: {e}")
+            return
+
+        uid, gid = self._set_uid, self._set_gid
+        if (
+            HAS_CHOWN
+            and uid is not None
+            and gid is not None
+            and (st.st_uid, st.st_gid) != (uid, gid)
+        ):
+            try:
+                os.chown(  # pyright: ignore[reportAttributeAccessIssue]
+                    filename, uid, gid
+                )
+            except OSError as e:
+                self._console_log(f"Cannot chown {filename}: {e}")
+
+        if (
+            HAS_CHMOD
+            and self.chmod is not None
+            and stat.S_IMODE(st.st_mode) != self.chmod
+        ):
+            try:
+                os.chmod(filename, self.chmod)
+            except OSError as e:
+                self._console_log(f"Cannot chmod {filename}: {e}")
 
     def _atomic_create_with_perms(self, target_path: str) -> bool:
         """Pre-create *target_path* atomically with the configured ownership
         and permissions, so the file never appears in the filesystem with
         intermediate (umask-derived) perms.
 
-        Without this, _open_lockfile() / do_open() / the gzip rotation path
-        all create files using the configured umask and call
-        _do_chown_and_chmod() afterward to apply the target perms. Between
-        creation and chmod, a different-user process that opens the file
-        gets PermissionError because the umask-derived perms are too
-        restrictive. See tests/test_perm_race.py.
+        Without this, _open_lockfile() / do_open() / do_gzip() all create
+        files using the configured umask and call _do_chown_and_chmod()
+        afterward to apply the target perms. Between creation and chmod, a
+        different-user process that opens the file gets PermissionError
+        because the umask-derived perms are too restrictive. See
+        tests/test_perm_race.py.
 
-        Strategy: create a tempfile in the same directory (so it lands on
-        the same filesystem), apply chown/chmod to it, then atomically
-        link it into place under the target name. POSIX guarantees
-        os.link() is atomic and refuses to overwrite. Other processes
-        therefore only ever see the file with correct perms or not at all.
+        Strategy: create a hidden temp file in the same directory (so it
+        lands on the same filesystem), apply chown/chmod to it, then
+        atomically link it into place under the target name. POSIX
+        guarantees os.link() is atomic and refuses to overwrite. Other
+        processes therefore only ever see the file with correct perms or not
+        at all.
 
-        The tempfile path is then unlinked: on POSIX the inode survives
+        The temp file path is then unlinked: on POSIX the inode survives
         because the target name still references it; on Windows os.rename()
-        is used instead and the tempfile is consumed by the rename.
+        is used instead and the temp file is consumed by the rename.
 
         Returns True if this call created the target file, False otherwise
-        (no perms configured, file already exists, or another process
-        won the race). Callers should always proceed with their normal
-        open afterward; this helper only ensures the file has the right
-        perms by the time anyone else can see it.
+        (no perms configured, file already exists, another process won the
+        race, or the filesystem can't do this). Callers always proceed with
+        their normal open afterward, so on False they fall back to creating
+        the file and applying the perms after, as in 0.9.29 and earlier.
         """
         # Skip the work entirely when no perm config applies. This keeps
         # the syscall cost at zero for the vast majority of users who
@@ -959,28 +1001,45 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         if os.path.exists(target_path):
             return False
 
-        dir_name = os.path.dirname(target_path) or "."
-        fd, tmp_path = tempfile.mkstemp(dir=dir_name)
+        dir_name, base_name = os.path.split(target_path)
+        tmp_path = os.path.join(dir_name, f".{base_name}.{randbits(64):08}.tmp")
         try:
+            # Create the temp file with mode 0o666 under the configured umask,
+            # the same way open() creates the log file. This matters when only
+            # `owner` is set: tempfile.mkstemp() always uses 0o600, which
+            # ignored the umask.
+            with self._alter_umask():
+                fd = os.open(tmp_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o666)
             os.close(fd)
+        except OSError as e:
+            self._console_log(f"Cannot create temp file {tmp_path}: {e}")
+            return False
+
+        try:
             self._do_chown_and_chmod(tmp_path)
-            try:
-                if os.name == "nt":
-                    # Hard links on Windows have surprising semantics on
-                    # some filesystems; rename is the portable choice.
-                    # os.rename() refuses to overwrite on Windows. The
-                    # tmp file is consumed by the rename, so the unlink
-                    # in the finally block will (harmlessly) raise
-                    # FileNotFoundError, which we suppress below.
-                    os.rename(tmp_path, target_path)
-                else:
-                    os.link(tmp_path, target_path)
-            except FileExistsError:
-                # Another process won the create race. That's fine; we
-                # leave their file alone and let the caller open it.
-                return False
+            if os.name == "nt":
+                # Hard links on Windows have surprising semantics on some
+                # filesystems; rename is the portable choice. os.rename()
+                # refuses to overwrite on Windows. The temp file is consumed
+                # by the rename, so the unlink in the finally block raises
+                # FileNotFoundError, which we suppress below.
+                os.rename(tmp_path, target_path)
+            else:
+                os.link(tmp_path, target_path)
+        except FileExistsError:
+            # Another process won the create race. That's fine; we
+            # leave their file alone and let the caller open it.
+            return False
+        except OSError as e:
+            # Some filesystems have no hard links (FAT/exFAT, many SMB/CIFS
+            # and FUSE mounts), so os.link() fails with EOPNOTSUPP or EPERM.
+            # Let the caller fall back to create-then-chmod.
+            self._console_log(f"Cannot link {tmp_path} to {target_path}: {e}")
+            return False
         finally:
-            with suppress(FileNotFoundError):
+            # A stray hidden temp file is better than a lost record, so
+            # ignore any error here.
+            with suppress(OSError):
                 os.unlink(tmp_path)
         return True
 
@@ -1010,7 +1069,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         interval: int = 1,
         backupCount: int = 0,
         encoding: Optional[str] = None,
-        delay: bool = False,
+        delay: bool = False,  # noqa: ARG002
         utc: bool = False,
         atTime: Optional[datetime.time] = None,
         errors: Optional[str] = None,
@@ -1037,7 +1096,11 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             interval=interval,
             backupCount=backupCount,
             encoding=encoding,
-            delay=delay,
+            # Always delay, whatever the caller passed. Otherwise the stdlib
+            # creates the log file here, with the process umask and without
+            # the configured chmod/owner. The stream would be closed right
+            # below anyway; self.clh opens the file when it first writes.
+            delay=True,
             utc=utc,
             atTime=atTime,
             **trfh_kwargs,
