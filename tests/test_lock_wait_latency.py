@@ -133,7 +133,7 @@ def test_windows_polls_while_lock_is_held(
 
     assert mock_lock.call_count == busy_polls + 1
     for call in mock_lock.call_args_list:
-        assert call.args[1] == LOCK_EX | LOCK_NB
+        assert call[0][1] == LOCK_EX | LOCK_NB
 
 
 def test_windows_raises_other_lock_errors_at_once(
@@ -159,7 +159,7 @@ def test_posix_uses_one_blocking_lock(
     handler._lock_stream_lock(MagicMock())
 
     mock_lock.assert_called_once()
-    assert mock_lock.call_args.args[1] == LOCK_EX
+    assert mock_lock.call_args[0][1] == LOCK_EX
 
 
 def test_contention_does_not_use_up_lock_attempts(
