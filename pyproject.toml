@@ -106,9 +106,9 @@ python = ["3.6", "3.7", "3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3
 [tool.hatch.envs.lint]
 detached = true
 dependencies = [
-  "black>=26.1.0",
+  "black>=26.10.1",
   "mypy>=1.10.0,<2",
-  "ruff>=0.15.2",
+  "ruff>=0.16.10",
   "portalocker",
 ]
 
