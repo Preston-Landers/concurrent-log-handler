@@ -69,7 +69,7 @@ from io import TextIOWrapper
 from logging.handlers import BaseRotatingHandler, TimedRotatingFileHandler
 from typing import TYPE_CHECKING, Dict, Generator, List, Optional, Tuple, Union
 
-from portalocker import LOCK_EX, lock, unlock
+from portalocker import LOCK_EX, LOCK_NB, AlreadyLocked, lock, unlock
 
 try:
     import grp
@@ -239,6 +239,9 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
         self.use_gzip = bool(gzip and use_gzip)
         self.gzip_buffer = 8096
         self.maxLockAttempts = 20
+        # Windows only: seconds to sleep between lock attempts while another
+        # process holds the lock. See _lock_stream_lock().
+        self.lockPollInterval = 0.001
 
         if unicode_error_policy not in ("ignore", "replace", "strict"):
             unicode_error_policy = "ignore"
@@ -618,9 +621,12 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 self._open_lockfile()
 
             if self.stream_lock:
+                # maxLockAttempts limits retries after errors. Waiting for
+                # another process to release the lock is not an error and
+                # does not use up attempts.
                 for _i in range(self.maxLockAttempts):
                     try:
-                        lock(self.stream_lock, LOCK_EX)
+                        self._lock_stream_lock(self.stream_lock)
                         self.is_locked = True
                         # Success: _do_unlock() is now responsible for releasing
                         # the thread lock; the finally block must not do so.
@@ -641,6 +647,40 @@ class ConcurrentRotatingFileHandler(BaseRotatingHandler):
                 # Recursive call, no stream_lock, or lock acquisition failed:
                 # release the thread lock we acquired at the top.
                 self._thread_lock.release()
+
+    def _lock_stream_lock(self, stream_lock: TextIOWrapper) -> None:
+        """Take the exclusive lock on the lock file. Wait while another process
+        holds it.
+
+        On POSIX, a blocking flock() waits in the kernel and returns as soon as
+        the other process releases the lock.
+
+        On Windows, a blocking lock is not safe to use. portalocker 3.2.0 and
+        later implement it with ``msvcrt.locking(LK_LOCK)``. If the lock is
+        held, the C runtime sleeps 1 second before it tries again, even if the
+        other process releases the lock after a few milliseconds. After 10
+        tries it raises. So each emit that meets contention waits about 1 s
+        (issue #90). Thus on Windows we request a non-blocking lock and poll
+        every ``lockPollInterval`` seconds. This works the same with the older
+        LockFileEx locker and with any locker set in
+        ``portalocker.portalocker.LOCKER``.
+
+        Like the blocking lock on POSIX, the poll has no time limit. The OS
+        releases a lock when the process that holds it exits, so only a holder
+        that is alive but stuck can make us wait for a long time. A time limit
+        would drop the record. Any error other than contention goes to the
+        caller.
+        """
+        if self.is_posix:
+            lock(stream_lock, LOCK_EX)
+            return
+        while True:
+            try:
+                lock(stream_lock, LOCK_EX | LOCK_NB)
+                return
+            except AlreadyLocked:
+                # Another process holds the lock.
+                time.sleep(self.lockPollInterval)
 
     def _do_unlock(self) -> None:
         if self.stream_lock:

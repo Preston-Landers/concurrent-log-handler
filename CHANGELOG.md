@@ -1,5 +1,25 @@
 # Change Log
 
+- 0.9.31
+
+  - Fix a 1 second stall on Windows when a process waits for the lock that another process holds.
+    [Issue #90](https://github.com/Preston-Landers/concurrent-log-handler/issues/90)
+
+    portalocker 3.2.0 and later implement a blocking exclusive lock on Windows with `msvcrt.locking(LK_LOCK)`.
+    If the lock is held, the C runtime sleeps 1 second before it tries again, even when the other process releases
+    the lock a few milliseconds later. So an emit that met contention took about 1000 ms instead of a few. After
+    10 seconds of contention, msvcrt raised an error and the handler started a new attempt. Records were not lost,
+    but a busy log could slow down all of the processes that write to it.
+
+    On Windows, the handler now requests a non-blocking lock and tries again every 1 ms while another process holds
+    the lock. Thus it gets the lock almost as soon as the other process releases it. This works with all supported
+    portalocker versions and does not depend on which locker portalocker uses. You can change the interval with the
+    `lockPollInterval` attribute of the handler. Like the blocking lock on POSIX, the wait has no time limit, and
+    waiting no longer uses up `maxLockAttempts`. A lock error other than contention still uses up an attempt.
+
+    POSIX systems are not affected. They still use a blocking `flock()`, which wakes the waiter as soon as the lock
+    is released.
+
 - 0.9.30
 
   - Mark Python 3.15 as supported.
