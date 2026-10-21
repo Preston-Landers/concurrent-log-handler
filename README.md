@@ -31,6 +31,12 @@ instead.
 
 See [CHANGELOG.md](CHANGELOG.md) for details.
 
+- **Version 0.9.31**: (October 2026)
+  - Fix a 1 second stall on Windows when a process waits for the lock that
+    another process holds. With portalocker 3.2.0 and later, each emit that
+    met contention took about 1000 ms. The handler now polls for the lock
+    and gets it almost as soon as the other process releases it. Issue
+    [#90](https://github.com/Preston-Landers/concurrent-log-handler/issues/90)
 - **Version 0.9.30**: (October 2026)
   - Mark Python 3.15 as supported.
   - Fix permission race window between file create and chmod when the
