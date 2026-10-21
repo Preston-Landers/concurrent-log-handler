@@ -54,7 +54,7 @@ This module supports Python 3.6 and later.
 (Support for older version was dropped in 0.9.23.)
 """
 
-import datetime
+import datetime as dt
 import errno
 import logging
 import os
@@ -1120,7 +1120,7 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
         encoding: Optional[str] = None,
         delay: bool = False,  # noqa: ARG002
         utc: bool = False,
-        atTime: Optional[datetime.time] = None,
+        atTime: Optional[dt.time] = None,
         errors: Optional[str] = None,
         maxBytes: int = 0,
         use_gzip: bool = False,
@@ -1223,13 +1223,9 @@ class ConcurrentTimedRotatingFileHandler(TimedRotatingFileHandler):
             # Recovery attempt
             try:
                 if self.utc:
-                    current_time = int(
-                        datetime.datetime.now(datetime.timezone.utc).timestamp()
-                    )
+                    current_time = int(dt.datetime.now(dt.timezone.utc).timestamp())
                 else:
-                    current_time = int(
-                        datetime.datetime.now().timestamp()  # noqa: DTZ005
-                    )
+                    current_time = int(dt.datetime.now().timestamp())  # noqa: DTZ005
             except Exception as e_recovery:
                 self._console_log(
                     f"Recovery attempt with datetime.now() failed: {e_recovery}",

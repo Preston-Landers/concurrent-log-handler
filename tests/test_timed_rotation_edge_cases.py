@@ -1,6 +1,6 @@
 # ruff: noqa: INP001
 
-import datetime
+import datetime as dt
 import sys
 import time
 from pathlib import Path
@@ -50,7 +50,7 @@ def test_rollover_with_bad_time(monkeypatch, tmp_path: Path):
     # Crucial check: doRollover should have successfully recovered and calculated
     # a new *future* rollover time based on the *recovered* time.
     # To verify this, we must get the real time, bypassing the monkeypatch.
-    good_current_time = datetime.datetime.now().timestamp()  # noqa: DTZ005
+    good_current_time = dt.datetime.now().timestamp()  # noqa: DTZ005
     assert handler.rolloverAt > good_current_time
 
 
