@@ -158,9 +158,10 @@ Install the package using `pip`:
 pip install concurrent-log-handler
 ```
 
-This will also install `portalocker`. On Windows, `portalocker` has a dependency
-on `pywin32`. Note that we now require at least portalocker 2.6.0, which among
-other things, explicitly declares its dependency on `pywin32` if needed.
+This will also install `portalocker`. We require at least portalocker 2.6.0.
+On Windows, portalocker versions before 4.0.0 require `pywin32`. From 4.0.0,
+`pywin32` is optional (`pip install "portalocker[win32]"`), and CLH does not
+need it.
 
 To install from source:
 
